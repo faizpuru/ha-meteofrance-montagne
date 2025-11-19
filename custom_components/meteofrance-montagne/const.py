@@ -25,6 +25,15 @@ AVALANCHE_RISK = {
     "5": "Très Fort"
 }
 
+# Avalanche risk colors (official European scale)
+AVALANCHE_RISK_COLORS = {
+    "1": "#CCFF66",  # Green
+    "2": "#FFFF00",  # Yellow
+    "3": "#FF9900",  # Orange
+    "4": "#FF0000",  # Red
+    "5": "#990000"   # Dark red
+}
+
 # Typical avalanche situations (SAT - Situations Avalancheuses Typiques)
 AVALANCHE_SITUATIONS = {
     "1": "Neige fraîche",

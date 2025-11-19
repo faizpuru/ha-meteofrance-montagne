@@ -82,6 +82,7 @@ Pour chaque massif configuré, l'intégration crée **8 sensors** et **6 images*
 - **Attributs** :
   - `risque_max_valeur` : Niveau numérique (1-5)
   - `risque_max_texte` : Texte descriptif (Faible, Limité, Marqué, Fort, Très Fort)
+  - `risque_max_couleur` : Couleur hexadécimale (#CCFF66, #FFFF00, #FF9900, #FF0000, #990000)
   - `resume` : Résumé de la situation
   - `commentaire` : Commentaire général
   - `departs_spontanes` : Risque de départs naturels
@@ -94,12 +95,14 @@ Pour chaque massif configuré, l'intégration crée **8 sensors** et **6 images*
       {
         "valeur": "3",
         "texte": "Marqué",
+        "couleur": "#FF9900",
         "altitude": "<2500m",
         "evolution": "stable"
       },
       {
         "valeur": "4",
         "texte": "Fort",
+        "couleur": "#FF0000",
         "altitude": ">2500m"
       }
     ]
@@ -108,7 +111,8 @@ Pour chaque massif configuré, l'intégration crée **8 sensors** et **6 images*
     [
       {
         "valeur": "3",
-        "texte": "Marqué"
+        "texte": "Marqué",
+        "couleur": "#FF9900"
       }
     ]
     ```
@@ -120,8 +124,11 @@ Pour chaque massif configuré, l'intégration crée **8 sensors** et **6 images*
 - **État** : Niveau de risque prévu en texte
 - **Image** : Pictogramme du niveau prévu
 - **Attributs** :
-  - `risque_max_valeur`, `risque_max_texte`
-  - `commentaire`, `description`
+  - `risque_max_valeur` : Niveau numérique (1-5)
+  - `risque_max_texte` : Texte descriptif
+  - `risque_max_couleur` : Couleur hexadécimale
+  - `commentaire` : Commentaire pour la prévision
+  - `description` : Description détaillée
   - `date_prevision` : Date de validité de la prévision
   - `last_update`
 

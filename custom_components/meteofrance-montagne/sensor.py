@@ -18,7 +18,7 @@ from homeassistant.helpers.update_coordinator import (
     CoordinatorEntity,
 )
 
-from .const import DOMAIN, AVALANCHE_RISK, AVALANCHE_SITUATIONS, WEATHER_CONDITIONS
+from .const import DOMAIN, AVALANCHE_RISK, AVALANCHE_RISK_COLORS, AVALANCHE_SITUATIONS, WEATHER_CONDITIONS
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -137,6 +137,7 @@ class MeteoFranceMontagneRisqueSensor(CoordinatorEntity, SensorEntity):
         attrs = {
             "risque_max_valeur": risk_max_value,
             "risque_max_texte": AVALANCHE_RISK.get(str(risk_max_value), ""),
+            "risque_max_couleur": AVALANCHE_RISK_COLORS.get(str(risk_max_value), ""),
             "resume": risque.get("resume", "").replace("\n", " ").strip(),
             "commentaire": risque.get("commentaire", "").replace("\n", " ").strip(),
             "departs_spontanes": risque.get("naturel", "").replace("\n", " ").strip(),
@@ -157,6 +158,7 @@ class MeteoFranceMontagneRisqueSensor(CoordinatorEntity, SensorEntity):
             zone_1 = {
                 "valeur": risk_1_value,
                 "texte": AVALANCHE_RISK.get(str(risk_1_value), "") if risk_1_value else "",
+                "couleur": AVALANCHE_RISK_COLORS.get(str(risk_1_value), "") if risk_1_value else "",
             }
             # Add altitude range only if there's a limit (2 zones)
             if altitude_limite is not None:
@@ -173,6 +175,7 @@ class MeteoFranceMontagneRisqueSensor(CoordinatorEntity, SensorEntity):
             zone_2 = {
                 "valeur": risk_2_value,
                 "texte": AVALANCHE_RISK.get(str(risk_2_value), "") if risk_2_value else "",
+                "couleur": AVALANCHE_RISK_COLORS.get(str(risk_2_value), "") if risk_2_value else "",
                 "altitude": f">{altitude_limite}m",
             }
             # Add evolution only if not empty
@@ -440,6 +443,7 @@ class MeteoFranceMontagneRisqueJ2Sensor(CoordinatorEntity, SensorEntity):
         return {
             "risque_max_valeur": risk_value,
             "risque_max_texte": AVALANCHE_RISK.get(str(risk_value), ""),
+            "risque_max_couleur": AVALANCHE_RISK_COLORS.get(str(risk_value), ""),
             "commentaire": j2.get("commentaire", "").replace("\n", " ").strip(),
             "description": j2.get("description", "").replace("\n", " ").strip(),
             "date_prevision": j2.get("date"),
