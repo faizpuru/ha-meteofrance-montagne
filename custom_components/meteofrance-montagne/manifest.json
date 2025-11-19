@@ -1,0 +1,18 @@
+{
+  "domain": "meteofrance-montagne",
+  "name": "Meteo France Montagne",
+  "codeowners": [
+    "@faizpuru"
+  ],
+  "config_flow": true,
+  "dependencies": [
+    "http"
+  ],
+  "documentation": "https://github.com/faizpuru/ha-meteofrance-montagne",
+  "iot_class": "cloud_polling",
+  "issue_tracker": "https://github.com/faizpuru/ha-meteofrance-montagne/issues",
+  "requirements": [
+    "lxml"
+  ],
+  "version": "1.0.0"
+}
