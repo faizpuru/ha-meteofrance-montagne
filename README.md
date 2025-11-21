@@ -22,7 +22,7 @@ Intégration Home Assistant pour consulter les **Bulletins d'estimation du Risqu
 
 ### Prérequis : Obtenir un token API Météo France (gratuit)
 
-1. Créez un compte sur [https://portail-api.meteofrance.fr](https://portail-api.meteofrance.fr)
+1. Créez un compte sur [https://portail-api.meteofrance.fr](https://portail-api.meteofrance.fr/web/fr/api/DonneesPubliquesBRA)
 2. Souscrivez à l'API **"Données Publiques BRA"** (gratuite)
 3. Copiez votre token API depuis votre espace personnel
 
@@ -278,7 +278,7 @@ cards:
 
 ### Erreur "cannot_connect"
 
-- Vérifiez la validité de votre token API sur [portail-api.meteofrance.fr](https://portail-api.meteofrance.fr)
+- Vérifiez la validité de votre token API sur [portail-api.meteofrance.fr](https://portail-api.meteofrance.fr/web/fr/api/DonneesPubliquesBRA)
 - Assurez-vous d'être bien inscrit à l'API "Données Publiques BRA"
 - Vérifiez que le token n'a pas expiré
 
