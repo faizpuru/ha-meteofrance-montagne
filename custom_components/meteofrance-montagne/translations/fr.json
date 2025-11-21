@@ -4,7 +4,7 @@
         "step": {
             "api": {
                 "title": "Configuration de l'API Météo France",
-                "description": "Entrez votre jeton d'API Météo France pour accéder aux bulletins d'estimation du risque d'avalanche (BRA).\n\nPour obtenir un jeton gratuit :\n1. Créez un compte sur https://portail-api.meteofrance.fr\n2. Souscrivez à l'API 'Données Publiques DPBRA'\n https://portail-api.meteofrance.fr/web/fr/api/DonneesPubliquesBRA \n3. Copiez votre jeton API\n\nCe jeton sera utilisé pour tous vos massifs.",
+                "description": "Entrez votre jeton d'API Météo France pour accéder aux bulletins d'estimation du risque d'avalanche (BRA).\n\nPour obtenir un jeton gratuit :\n1. Créez un compte sur https://portail-api.meteofrance.fr\n2. Souscrivez à l'API 'Données Publiques BRA'\n https://portail-api.meteofrance.fr/web/fr/api/DonneesPubliquesBRA \n3. Copiez votre jeton API\n\nCe jeton sera utilisé pour tous vos massifs.",
                 "data": {
                     "token": "Jeton d'API"
                 }

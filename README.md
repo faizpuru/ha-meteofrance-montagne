@@ -23,7 +23,7 @@ Intégration Home Assistant pour consulter les **Bulletins d'estimation du Risqu
 ### Prérequis : Obtenir un token API Météo France (gratuit)
 
 1. Créez un compte sur [https://portail-api.meteofrance.fr](https://portail-api.meteofrance.fr)
-2. Souscrivez à l'API **"Données Publiques DPBRA"** (gratuite)
+2. Souscrivez à l'API **"Données Publiques BRA"** (gratuite)
 3. Copiez votre token API depuis votre espace personnel
 
 ### Via HACS (recommandé)
@@ -264,7 +264,7 @@ cards:
     content: >
       **Stabilité :** {{ states('sensor.aravis_stabilite_du_manteau_neigeux') }}
 
-      **Qualité :** {{ states('sensor.aravis_qualite_de_la_neige')[:80] }}...
+      **Qualité :** {{ state_attr('sensor.aravis_qualite_de_la_neige', 'texte_complet') }}
 ```
 
 ## 🔧 Dépannage
@@ -279,7 +279,7 @@ cards:
 ### Erreur "cannot_connect"
 
 - Vérifiez la validité de votre token API sur [portail-api.meteofrance.fr](https://portail-api.meteofrance.fr)
-- Assurez-vous d'être bien inscrit à l'API "Données Publiques DPBRA"
+- Assurez-vous d'être bien inscrit à l'API "Données Publiques BRA"
 - Vérifiez que le token n'a pas expiré
 
 ### Le sensor affiche "unavailable"
@@ -307,7 +307,7 @@ Ce projet est sous licence MIT. Voir le fichier [LICENSE](LICENSE) pour plus de 
 ## 🙏 Crédits
 
 - Données fournies par **[Météo France](https://meteofrance.com)**
-- API publique : **Données Publiques DPBRA**
+- API publique : **Données Publiques BRA**
 - Développé par **[@faizpuru](https://github.com/faizpuru)**
 
 ---
