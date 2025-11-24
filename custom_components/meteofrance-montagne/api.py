@@ -175,7 +175,7 @@ class MeteoFranceMontagneApi:
             'mesures': mesures
         }
 
-        # Parse METEO
+        # Parse METEO (prévisions)
         meteo_elem = root.find('METEO')
         echeances = []
         if meteo_elem is not None:
@@ -194,11 +194,33 @@ class MeteoFranceMontagneApi:
                     'mer_nuages': to_int_or_null(get_attr(echeance, 'MERNUAGES'))
                 })
 
+        # Parse METEO historique (BSH)
+        echeances_historique = []
+        bsh_elem = root.find('BSH')
+        if bsh_elem is not None:
+            bsh_meteo_elem = bsh_elem.find('METEO')
+            if bsh_meteo_elem is not None:
+                for echeance in bsh_meteo_elem.findall('ECHEANCE'):
+                    echeances_historique.append({
+                        'date': get_attr(echeance, 'DATE'),
+                        'vent': {
+                            'force_1': to_int_or_null(get_attr(echeance, 'FF1')),
+                            'direction_1': get_attr(echeance, 'DD1'),
+                            'force_2': to_int_or_null(get_attr(echeance, 'FF2')),
+                            'direction_2': get_attr(echeance, 'DD2')
+                        },
+                        'iso_0': to_int_or_null(get_attr(echeance, 'ISO0')),
+                        'pluie_neige': to_int_or_null(get_attr(echeance, 'PLUIENEIGE')),
+                        'temps_sensible': to_int_or_null(get_attr(echeance, 'TEMPSSENSIBLE')),
+                        'mer_nuages': to_int_or_null(get_attr(echeance, 'MERNUAGES'))
+                    })
+
         meteo = {
             'altitude_vent_1': to_int_or_null(get_attr(meteo_elem, 'ALTITUDEVENT1')) if meteo_elem is not None else None,
             'altitude_vent_2': to_int_or_null(get_attr(meteo_elem, 'ALTITUDEVENT2')) if meteo_elem is not None else None,
             'commentaire': get_text(meteo_elem.find('COMMENTAIRE')) if meteo_elem is not None else '',
-            'echeances': echeances
+            'echeances': echeances,
+            'echeances_historique': echeances_historique
         }
 
         # Build final structure

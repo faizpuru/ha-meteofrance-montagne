@@ -316,16 +316,20 @@ class MeteoFranceMontagneMeteoSensor(CoordinatorEntity, SensorEntity):
             return {}
         meteo = self.coordinator.data["meteo"]
         echeances = meteo.get("echeances", [])
+        echeances_historique = meteo.get("echeances_historique", [])
 
         # Nettoyer les échéances et ajouter les traductions
         clean_echeances = [self._clean_echeance(
             echeance) for echeance in echeances]
+        clean_echeances_historique = [self._clean_echeance(
+            echeance) for echeance in echeances_historique]
 
         attrs = {
             "altitude_vent_1_m": meteo.get("altitude_vent_1"),
             "altitude_vent_2_m": meteo.get("altitude_vent_2"),
             "commentaire": meteo.get("commentaire", ""),
             "echeances": clean_echeances,
+            "echeances_historique": clean_echeances_historique,
             "last_update": self.coordinator.data.get("date"),
         }
         return attrs
