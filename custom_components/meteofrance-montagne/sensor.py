@@ -200,6 +200,10 @@ class MeteoFranceMontagneRisqueSensor(CoordinatorEntity, SensorEntity):
                 "pentes_commentaire": pentes.get("commentaire", ""),
             })
 
+        # Add historical risk data
+        if "historique" in risque:
+            attrs["historique"] = risque.get("historique", [])
+
         return attrs
 
 
@@ -266,6 +270,25 @@ class MeteoFranceMontagneEnneigementSensor(CoordinatorEntity, SensorEntity):
             }
             for niveau in niveaux
         ]
+
+        # Add historical snow cover data (filtered by orientation)
+        if "historique" in enneigement:
+            historique_complet = enneigement.get("historique", [])
+            # Filter historical data to only include relevant limit and nivaux for this orientation
+            attrs["historique"] = [
+                {
+                    "date": h.get("date"),
+                    f"limite_{orientation_key}": h.get(f"limite_{orientation_key}"),
+                    "niveaux": [
+                        {
+                            "altitude_m": n.get("altitude"),
+                            "enneigement_cm": n.get(orientation_key)
+                        }
+                        for n in h.get("niveaux", [])
+                    ]
+                }
+                for h in historique_complet
+            ]
 
         return attrs
 
@@ -387,6 +410,10 @@ class MeteoFranceMontagneNeigeFraicheSensor(CoordinatorEntity, SensorEntity):
             }
             for mesure in mesures
         ]
+
+        # Add historical fresh snow data
+        if "historique" in neige:
+            attrs["historique"] = neige.get("historique", [])
 
         return attrs
 
