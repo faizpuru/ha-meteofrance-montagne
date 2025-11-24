@@ -125,7 +125,7 @@ def parse_bulletin_xml(xml_doc):
         'mesures': mesures
     }
 
-    # Parse METEO
+    # Parse METEO (prévisions)
     meteo_elem = root.find('METEO')
     echeances = []
     if meteo_elem is not None:
@@ -144,11 +144,33 @@ def parse_bulletin_xml(xml_doc):
                 'mer_nuages': to_int_or_null(get_attr(echeance, 'MERNUAGES'))
             })
 
+    # Parse METEO historique (BSH)
+    echeances_historique = []
+    bsh_elem = root.find('BSH')
+    if bsh_elem is not None:
+        bsh_meteo_elem = bsh_elem.find('METEO')
+        if bsh_meteo_elem is not None:
+            for echeance in bsh_meteo_elem.findall('ECHEANCE'):
+                echeances_historique.append({
+                    'date': get_attr(echeance, 'DATE'),
+                    'vent': {
+                        'force_1': to_int_or_null(get_attr(echeance, 'FF1')),
+                        'direction_1': get_attr(echeance, 'DD1'),
+                        'force_2': to_int_or_null(get_attr(echeance, 'FF2')),
+                        'direction_2': get_attr(echeance, 'DD2')
+                    },
+                    'iso_0': to_int_or_null(get_attr(echeance, 'ISO0')),
+                    'pluie_neige': to_int_or_null(get_attr(echeance, 'PLUIENEIGE')),
+                    'temps_sensible': to_int_or_null(get_attr(echeance, 'TEMPSSENSIBLE')),
+                    'mer_nuages': to_int_or_null(get_attr(echeance, 'MERNUAGES'))
+                })
+
     meteo = {
         'altitude_vent_1': to_int_or_null(get_attr(meteo_elem, 'ALTITUDEVENT1')) if meteo_elem is not None else None,
         'altitude_vent_2': to_int_or_null(get_attr(meteo_elem, 'ALTITUDEVENT2')) if meteo_elem is not None else None,
         'commentaire': get_text(meteo_elem.find('COMMENTAIRE')) if meteo_elem is not None else '',
-        'echeances': echeances
+        'echeances': echeances,
+        'echeances_historique': echeances_historique
     }
 
     # Build final structure
@@ -279,7 +301,21 @@ def test_parse_bulletin_xml():
     assert echeance_last['date'] == '2025-11-23T00:00:00'
     assert echeance_last['pluie_neige'] == -1
 
+    # Test meteo historique section (BSH)
+    assert 'echeances_historique' in result['meteo']
+    echeances_hist = result['meteo']['echeances_historique']
+    assert len(echeances_hist) > 0  # Should have historical data
+    # Check first historical entry
+    if len(echeances_hist) > 0:
+        first_hist = echeances_hist[0]
+        assert 'date' in first_hist
+        assert 'iso_0' in first_hist
+        assert 'pluie_neige' in first_hist
+        assert 'vent' in first_hist
+
     print("✓ All tests passed!")
+    print(f"✓ Échéances prévision: {len(result['meteo']['echeances'])}")
+    print(f"✓ Échéances historique: {len(result['meteo']['echeances_historique'])}")
     return result
 
 
