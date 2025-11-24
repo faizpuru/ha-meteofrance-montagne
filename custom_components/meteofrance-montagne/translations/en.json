@@ -1,10 +1,10 @@
 {
-    "title": "Météo France Montagne",
+    "title": "Météo-France Montagne",
     "config": {
         "step": {
             "api": {
-                "title": "Météo France API Configuration",
-                "description": "Enter your Météo France API token to access avalanche risk assessment bulletins (BRA).\n\nTo get a free token:\n1. Create an account on https://portail-api.meteofrance.fr/web/fr/api/DonneesPubliquesBRA\n2. Subscribe to the 'Données Publiques BRA' API\n3. Copy your API token\n\nThis token will be used for all your mountain ranges.",
+                "title": "Météo-France API Configuration",
+                "description": "Enter your Météo-France API token to access avalanche risk assessment bulletins (BRA).\n\nTo get a free token:\n1. Create an account on https://portail-api.meteofrance.fr/web/fr/api/DonneesPubliquesBRA\n2. Subscribe to the 'Données Publiques BRA' API\n3. Copy your API token\n\nThis token will be used for all your mountain ranges.",
                 "data": {
                     "token": "API Token"
                 }
@@ -32,20 +32,20 @@
             },
             "reconfigure": {
                 "title": "Update API Token",
-                "description": "Update your Météo France API token.\n\nWarning: This change will affect all mountain ranges using this API configuration.",
+                "description": "Update your Météo-France API token.\n\nWarning: This change will affect all mountain ranges using this API configuration.",
                 "data": {
                     "token": "API Token"
                 }
             }
         },
         "error": {
-            "cannot_connect": "Unable to connect to the Météo France API. Check your internet connection and that the API token is valid.",
-            "invalid_auth": "The API token is not valid. Make sure you copied the complete token from the Météo France portal.",
+            "cannot_connect": "Unable to connect to the Météo-France API. Check your internet connection and that the API token is valid.",
+            "invalid_auth": "The API token is not valid. Make sure you copied the complete token from the Météo-France portal.",
             "unknown": "An unknown error occurred. Check the Home Assistant logs for more details."
         },
         "abort": {
             "already_configured": "This mountain range is already configured in Home Assistant. You cannot add it twice.",
-            "no_api": "No API configuration found. You must first configure your Météo France API token before adding a mountain range.",
+            "no_api": "No API configuration found. You must first configure your Météo-France API token before adding a mountain range.",
             "not_api": "This entry is not an API configuration and cannot be reconfigured.",
             "reconfigure_successful": "The API token has been successfully updated. All your mountain ranges will now use this new token."
         }

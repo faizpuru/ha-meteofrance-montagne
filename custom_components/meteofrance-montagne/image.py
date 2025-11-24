@@ -1,4 +1,4 @@
-"""Support for Meteo France Montagne images."""
+"""Support for Météo-France Montagne images."""
 from __future__ import annotations
 
 import logging
@@ -21,7 +21,7 @@ _LOGGER = logging.getLogger(__name__)
 async def async_setup_entry(
     hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
 ) -> None:
-    """Set up the Meteo France Montagne image platform."""
+    """Set up the Météo-France Montagne image platform."""
     coordinator = hass.data[DOMAIN][entry.entry_id]
 
     entities = []
@@ -38,7 +38,7 @@ async def async_setup_entry(
 
 
 class MeteoFranceMontagneImage(CoordinatorEntity, ImageEntity):
-    """Representation of a Météo France Montagne image."""
+    """Representation of a Météo-France Montagne image."""
 
     _attr_content_type = "image/png"
 

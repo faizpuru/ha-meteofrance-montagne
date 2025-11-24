@@ -1,10 +1,15 @@
-# Météo France Montagne pour Home Assistant
+# Météo-France Montagne pour Home Assistant
 
 [![hacs_badge](https://img.shields.io/badge/HACS-Custom-41BDF5.svg?style=for-the-badge)](https://github.com/hacs/integration)
 [![GitHub Release](https://img.shields.io/github/release/faizpuru/ha-meteofrance-montagne.svg?style=for-the-badge)](https://github.com/faizpuru/ha-meteofrance-montagne/releases)
 [![License](https://img.shields.io/github/license/faizpuru/ha-meteofrance-montagne.svg?style=for-the-badge)](LICENSE)
 
-Intégration Home Assistant pour consulter les **Bulletins d'estimation du Risque d'Avalanche (BRA)** de Météo France. Surveillez les conditions de neige et le risque d'avalanche dans tous les massifs montagneux français (Alpes, Pyrénées, Corse).
+Intégration Home Assistant pour consulter les **Bulletins d'estimation du Risque d'Avalanche (BRA)** de Météo-France. Surveillez les conditions de neige et le risque d'avalanche dans tous les massifs montagneux français (Alpes, Pyrénées, Corse).
+
+## 🚀 Installation rapide
+
+[![Rajouter le dépôt dans HACS](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=faizpuru&repository=ha-meteofrance-montagne&category=integration)
+[![Ajouter l'intégration](https://my.home-assistant.io/badges/config_flow_start.svg)](https://my.home-assistant.io/redirect/config_flow_start/?domain=meteofrance-montagne)
 
 
 ## ✨ Fonctionnalités
@@ -20,7 +25,7 @@ Intégration Home Assistant pour consulter les **Bulletins d'estimation du Risqu
 
 ## 📦 Installation
 
-### Prérequis : Obtenir un token API Météo France (gratuit)
+### Prérequis : Obtenir un token API Météo-France (gratuit)
 
 1. Créez un compte sur [https://portail-api.meteofrance.fr](https://portail-api.meteofrance.fr/web/fr/api/DonneesPubliquesBRA)
 2. Souscrivez à l'API **"Données Publiques BRA"** (gratuite)
@@ -35,7 +40,7 @@ Intégration Home Assistant pour consulter les **Bulletins d'estimation du Risqu
 5. Ajoutez l'URL : `https://github.com/faizpuru/ha-meteofrance-montagne`
 6. Sélectionnez la catégorie **"Intégration"**
 7. Cliquez sur **"Ajouter"**
-8. Recherchez **"Météo France Montagne"** dans HACS
+8. Recherchez **"Météo-France Montagne"** dans HACS
 9. Cliquez sur **"Télécharger"**
 10. **Redémarrez Home Assistant**
 
@@ -51,20 +56,20 @@ Intégration Home Assistant pour consulter les **Bulletins d'estimation du Risqu
 
 1. Allez dans **Paramètres > Appareils et Services**
 2. Cliquez sur **"Ajouter une intégration"**
-3. Recherchez **"Météo France Montagne"**
-4. Entrez votre **token API Météo France**
+3. Recherchez **"Météo-France Montagne"**
+4. Entrez votre **token API Météo-France**
 5. Sélectionnez le **département** puis le **massif** à surveiller
 
 ### Ajouter d'autres massifs
 
-1. Réexécutez l'intégration (Ajouter une intégration > Météo France Montagne)
+1. Réexécutez l'intégration (Ajouter une intégration > Météo-France Montagne)
 2. L'intégration utilisera automatiquement votre token API existant
 3. Sélectionnez un nouveau département et massif
 
 ### Modifier le token API
 
 1. Allez dans **Paramètres > Appareils et Services**
-2. Trouvez l'entrée **"API Météo France Montagne"**
+2. Trouvez l'entrée **"API Météo-France Montagne"**
 3. Cliquez sur **"Reconfigurer"**
 4. Entrez le nouveau token
 
@@ -188,7 +193,7 @@ Pour chaque massif configuré, l'intégration crée **8 sensors** et **6 images*
   - `last_update`
 
 #### 8. Qualité de la Neige (`sensor.{massif}_qualite_de_la_neige`)
-- **État** : Extrait du texte (100 premiers caractères)
+- **État** : Extrait du texte (100 premiers caractères)Me
 - **Attributs** :
   - `texte_complet` : Description complète de la qualité de la neige
   - `last_update`
@@ -272,9 +277,9 @@ cards:
 ### Les données ne se mettent pas à jour
 
 - Vérifiez votre connexion internet
-- Les bulletins Météo France sont publiés quotidiennement vers **16h**
+- Les bulletins Météo-France sont publiés quotidiennement vers **16h**
 - L'intégration se met à jour automatiquement toutes les heures
-- Rechargez l'intégration : Paramètres > Appareils et Services > Météo France Montagne > Recharger
+- Rechargez l'intégration : Paramètres > Appareils et Services > Météo-France Montagne > Recharger
 
 ### Erreur "cannot_connect"
 
@@ -290,7 +295,7 @@ cards:
 
 ## 📚 Ressources
 
-- [Documentation API Météo France](https://portail-api.meteofrance.fr/web/fr/api/DonneesPubliquesBRA)
+- [Documentation API Météo-France](https://portail-api.meteofrance.fr/web/fr/api/DonneesPubliquesBRA)
 
 ## 🤝 Contribution
 
@@ -306,7 +311,7 @@ Ce projet est sous licence MIT. Voir le fichier [LICENSE](LICENSE) pour plus de 
 
 ## 🙏 Crédits
 
-- Données fournies par **[Météo France](https://meteofrance.com)**
+- Données fournies par **[Météo-France](https://meteofrance.com)**
 - API publique : **Données Publiques BRA**
 - Développé par **[@faizpuru](https://github.com/faizpuru)**
 

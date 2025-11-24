@@ -1,7 +1,7 @@
 DOMAIN = "meteofrance-montagne"
 TIMEOUT = 5
 BASE_URL = "https://public-api.meteofrance.fr/public/DPBRA/v1"
-NAME = "Meteo France Montagne"
+NAME = "Météo-France Montagne"
 CONF_MASSIF = "massif"
 CONF_TOKEN = "token"
 DEFAULT_TOKEN = ""
