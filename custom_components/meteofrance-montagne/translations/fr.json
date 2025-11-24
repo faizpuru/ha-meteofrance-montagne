@@ -1,10 +1,10 @@
 {
-    "title": "Météo France Montagne",
+    "title": "Météo-France Montagne",
     "config": {
         "step": {
             "api": {
-                "title": "Configuration de l'API Météo France",
-                "description": "Entrez votre jeton d'API Météo France pour accéder aux bulletins d'estimation du risque d'avalanche (BRA).\n\nPour obtenir un jeton gratuit :\n1. Créez un compte sur https://portail-api.meteofrance.fr/web/fr/api/DonneesPubliquesBRA\n2. Souscrivez à l'API 'Données Publiques BRA'\n3. Copiez votre jeton API\n\nCe jeton sera utilisé pour tous vos massifs.",
+                "title": "Configuration de l'API Météo-France",
+                "description": "Entrez votre jeton d'API Météo-France pour accéder aux bulletins d'estimation du risque d'avalanche (BRA).\n\nPour obtenir un jeton gratuit :\n1. Créez un compte sur https://portail-api.meteofrance.fr/web/fr/api/DonneesPubliquesBRA\n2. Souscrivez à l'API 'Données Publiques BRA'\n3. Copiez votre jeton API\n\nCe jeton sera utilisé pour tous vos massifs.",
                 "data": {
                     "token": "Jeton d'API"
                 }
@@ -32,20 +32,20 @@
             },
             "reconfigure": {
                 "title": "Modification du jeton d'API",
-                "description": "Mettez à jour votre jeton d'API Météo France.\n\nAttention : Ce changement affectera tous les massifs utilisant cette configuration API.",
+                "description": "Mettez à jour votre jeton d'API Météo-France.\n\nAttention : Ce changement affectera tous les massifs utilisant cette configuration API.",
                 "data": {
                     "token": "Jeton d'API"
                 }
             }
         },
         "error": {
-            "cannot_connect": "Impossible de se connecter à l'API Météo France. Vérifiez votre connexion internet et que le jeton API est valide.",
-            "invalid_auth": "Le jeton d'API n'est pas valide. Vérifiez que vous avez bien copié le jeton complet depuis le portail Météo France.",
+            "cannot_connect": "Impossible de se connecter à l'API Météo-France. Vérifiez votre connexion internet et que le jeton API est valide.",
+            "invalid_auth": "Le jeton d'API n'est pas valide. Vérifiez que vous avez bien copié le jeton complet depuis le portail Météo-France.",
             "unknown": "Une erreur inconnue s'est produite. Consultez les logs de Home Assistant pour plus de détails."
         },
         "abort": {
             "already_configured": "Ce massif est déjà configuré dans Home Assistant. Vous ne pouvez pas l'ajouter deux fois.",
-            "no_api": "Aucune configuration API trouvée. Vous devez d'abord configurer votre jeton d'API Météo France avant d'ajouter un massif.",
+            "no_api": "Aucune configuration API trouvée. Vous devez d'abord configurer votre jeton d'API Météo-France avant d'ajouter un massif.",
             "not_api": "Cette entrée n'est pas une configuration API et ne peut pas être reconfigurée.",
             "reconfigure_successful": "Le jeton d'API a été mis à jour avec succès. Tous vos massifs utiliseront désormais ce nouveau jeton."
         }

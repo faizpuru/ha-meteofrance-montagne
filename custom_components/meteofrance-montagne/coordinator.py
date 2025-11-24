@@ -1,4 +1,4 @@
-"""Coordinator for fetching Météo France Montagne data."""
+"""Coordinator for fetching Météo-France Montagne data."""
 from datetime import timedelta, datetime
 import logging
 

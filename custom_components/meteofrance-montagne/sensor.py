@@ -1,4 +1,4 @@
-"""Platform for Meteo France Montagne sensor integration."""
+"""Platform for Météo-France Montagne sensor integration."""
 from __future__ import annotations
 
 import logging
@@ -28,7 +28,7 @@ async def async_setup_entry(
     entry: ConfigEntry,
     async_add_entities: AddEntitiesCallback
 ) -> None:
-    """Set up the Meteo France Montagne sensors."""
+    """Set up the Météo-France Montagne sensors."""
     coordinator = hass.data[DOMAIN][entry.entry_id]
 
     entities = [
@@ -88,7 +88,7 @@ async def async_setup_entry(
 
 
 class MeteoFranceMontagneRisqueSensor(CoordinatorEntity, SensorEntity):
-    """Representation of a Meteo France Montagne Sensor."""
+    """Representation of a Météo-France Montagne Sensor."""
 
     def __init__(
         self,
@@ -204,7 +204,7 @@ class MeteoFranceMontagneRisqueSensor(CoordinatorEntity, SensorEntity):
 
 
 class MeteoFranceMontagneEnneigementSensor(CoordinatorEntity, SensorEntity):
-    """Representation of a Meteo France Montagne Snow Sensor."""
+    """Representation of a Météo-France Montagne Snow Sensor."""
 
     _attr_device_class = SensorDeviceClass.DISTANCE
     _attr_native_unit_of_measurement = UnitOfLength.METERS
@@ -271,7 +271,7 @@ class MeteoFranceMontagneEnneigementSensor(CoordinatorEntity, SensorEntity):
 
 
 class MeteoFranceMontagneMeteoSensor(CoordinatorEntity, SensorEntity):
-    """Representation of a Meteo France Montagne Weather Sensor."""
+    """Representation of a Météo-France Montagne Weather Sensor."""
 
     def __init__(
         self,
@@ -332,7 +332,7 @@ class MeteoFranceMontagneMeteoSensor(CoordinatorEntity, SensorEntity):
 
 
 class MeteoFranceMontagneNeigeFraicheSensor(CoordinatorEntity, SensorEntity):
-    """Representation of a Meteo France Montagne Fresh Snow Sensor."""
+    """Representation of a Météo-France Montagne Fresh Snow Sensor."""
 
     _attr_device_class = SensorDeviceClass.DISTANCE
     _attr_native_unit_of_measurement = UnitOfLength.METERS
@@ -388,7 +388,7 @@ class MeteoFranceMontagneNeigeFraicheSensor(CoordinatorEntity, SensorEntity):
 
 
 class MeteoFranceMontagneRisqueJ2Sensor(CoordinatorEntity, SensorEntity):
-    """Representation of a Meteo France Montagne Forecast Risk Sensor."""
+    """Representation of a Météo-France Montagne Forecast Risk Sensor."""
 
     def __init__(
         self,
@@ -452,7 +452,7 @@ class MeteoFranceMontagneRisqueJ2Sensor(CoordinatorEntity, SensorEntity):
 
 
 class MeteoFranceMontagneStabiliteSensor(CoordinatorEntity, SensorEntity):
-    """Representation of a Meteo France Montagne Stability Sensor."""
+    """Representation of a Météo-France Montagne Stability Sensor."""
 
     def __init__(
         self,
@@ -508,7 +508,7 @@ class MeteoFranceMontagneStabiliteSensor(CoordinatorEntity, SensorEntity):
 
 
 class MeteoFranceMontagneQualiteSensor(CoordinatorEntity, SensorEntity):
-    """Representation of a Meteo France Montagne Snow Quality Sensor."""
+    """Representation of a Météo-France Montagne Snow Quality Sensor."""
 
     def __init__(
         self,

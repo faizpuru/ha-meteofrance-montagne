@@ -1,4 +1,4 @@
-"""The Meteo France Montagne integration."""
+"""The Météo-France Montagne integration."""
 import logging
 
 from pathlib import Path
@@ -17,7 +17,7 @@ PLATFORMS = [Platform.IMAGE, Platform.SENSOR]
 
 
 async def async_setup(hass: HomeAssistant, config: dict) -> bool:
-    """Set up the Meteo France Montagne component."""
+    """Set up the Météo-France Montagne component."""
     hass.data.setdefault(DOMAIN, {})
 
     should_cache = True
@@ -32,7 +32,7 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
-    """Set up Météo France Montagne from a config entry."""
+    """Set up Météo-France Montagne from a config entry."""
 
     # If this is an API configuration entry (parent), nothing to set up
     if CONF_TOKEN in entry.data:

@@ -1,4 +1,4 @@
-"""Config flow for Météo France Montagne integration."""
+"""Config flow for Météo-France Montagne integration."""
 from __future__ import annotations
 
 import logging
@@ -16,7 +16,7 @@ _LOGGER = logging.getLogger(__name__)
 
 
 class MeteoFranceMontagneConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
-    """Handle a config flow for Météo France Montagne."""
+    """Handle a config flow for Météo-France Montagne."""
 
     VERSION = 2
 
@@ -60,7 +60,7 @@ class MeteoFranceMontagneConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
                 # Create the API configuration entry
                 return self.async_create_entry(
-                    title="API Météo France Montagne",
+                    title="API Météo-France Montagne",
                     data={CONF_TOKEN: token},
                 )
             except Exception as err:
@@ -74,7 +74,7 @@ class MeteoFranceMontagneConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             }),
             errors=errors,
             description_placeholders={
-                "description": "Enter your Météo France API token. This will be used for all massifs."
+                "description": "Enter your Météo-France API token. This will be used for all massifs."
             }
         )
 

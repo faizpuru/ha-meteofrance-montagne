@@ -1,4 +1,4 @@
-"""API for Meteo France Montagne."""
+"""API for Météo-France Montagne."""
 import aiohttp
 import asyncio
 import logging
