@@ -156,7 +156,8 @@ class MeteoFranceMontagneApi:
             'date': get_attr(enneigement_elem, 'DATE') if enneigement_elem is not None else '',
             'limite_sud': to_int_or_null(get_attr(enneigement_elem, 'LimiteSud')) if enneigement_elem is not None else None,
             'limite_nord': to_int_or_null(get_attr(enneigement_elem, 'LimiteNord')) if enneigement_elem is not None else None,
-            'niveaux': niveaux
+            'niveaux': niveaux,
+            'historique': []  # Will be filled later from BSH
         }
 
         # Parse NEIGEFRAICHE
@@ -172,7 +173,8 @@ class MeteoFranceMontagneApi:
 
         neige_fraiche = {
             'altitude_ss': to_int_or_null(get_attr(neige_fraiche_elem, 'ALTITUDESS')) if neige_fraiche_elem is not None else None,
-            'mesures': mesures
+            'mesures': mesures,
+            'historique': []  # Will be filled later from BSH
         }
 
         # Parse METEO (prévisions)
@@ -194,9 +196,11 @@ class MeteoFranceMontagneApi:
                     'mer_nuages': to_int_or_null(get_attr(echeance, 'MERNUAGES'))
                 })
 
-        # Parse METEO historique (BSH)
-        echeances_historique = []
+        # Parse BSH (Bilan de Saison Hivernal - Historique)
         bsh_elem = root.find('BSH')
+
+        # Parse METEO historique
+        echeances_historique = []
         if bsh_elem is not None:
             bsh_meteo_elem = bsh_elem.find('METEO')
             if bsh_meteo_elem is not None:
@@ -215,6 +219,49 @@ class MeteoFranceMontagneApi:
                         'mer_nuages': to_int_or_null(get_attr(echeance, 'MERNUAGES'))
                     })
 
+        # Parse RISQUES historique
+        risques_historique = []
+        if bsh_elem is not None:
+            risques_elem = bsh_elem.find('RISQUES')
+            if risques_elem is not None:
+                for risque_jour in risques_elem.findall('RISQUE'):
+                    risques_historique.append({
+                        'date': get_attr(risque_jour, 'DATE'),
+                        'risque_max': get_attr(risque_jour, 'RISQUEMAXI')
+                    })
+
+        # Parse ENNEIGEMENTS historique
+        enneigements_historique = []
+        if bsh_elem is not None:
+            enneigements_elem = bsh_elem.find('ENNEIGEMENTS')
+            if enneigements_elem is not None:
+                for enneigement_jour in enneigements_elem.findall('ENNEIGEMENT'):
+                    niveaux_hist = []
+                    for niveau in enneigement_jour.findall('NIVEAU'):
+                        niveaux_hist.append({
+                            'altitude': to_int_or_null(get_attr(niveau, 'ALTI')),
+                            'nord': to_int_or_null(get_attr(niveau, 'N')),
+                            'sud': to_int_or_null(get_attr(niveau, 'S'))
+                        })
+                    enneigements_historique.append({
+                        'date': get_attr(enneigement_jour, 'DATE'),
+                        'limite_sud': to_int_or_null(get_attr(enneigement_jour, 'LimiteSud')),
+                        'limite_nord': to_int_or_null(get_attr(enneigement_jour, 'LimiteNord')),
+                        'niveaux': niveaux_hist
+                    })
+
+        # Parse NEIGEFRAICHE historique
+        neige_fraiche_historique = []
+        if bsh_elem is not None:
+            neige_fraiche_hist_elem = bsh_elem.find('NEIGEFRAICHE')
+            if neige_fraiche_hist_elem is not None:
+                for neige24h in neige_fraiche_hist_elem.findall('NEIGE24H'):
+                    neige_fraiche_historique.append({
+                        'date': get_attr(neige24h, 'DATE'),
+                        'min': to_int_or_null(get_attr(neige24h, 'SS24Min')),
+                        'max': to_int_or_null(get_attr(neige24h, 'SS24Max'))
+                    })
+
         meteo = {
             'altitude_vent_1': to_int_or_null(get_attr(meteo_elem, 'ALTITUDEVENT1')) if meteo_elem is not None else None,
             'altitude_vent_2': to_int_or_null(get_attr(meteo_elem, 'ALTITUDEVENT2')) if meteo_elem is not None else None,
@@ -222,6 +269,11 @@ class MeteoFranceMontagneApi:
             'echeances': echeances,
             'echeances_historique': echeances_historique
         }
+
+        # Add historical data to their respective sections
+        risque['historique'] = risques_historique
+        enneigement['historique'] = enneigements_historique
+        neige_fraiche['historique'] = neige_fraiche_historique
 
         # Build final structure
         result = {

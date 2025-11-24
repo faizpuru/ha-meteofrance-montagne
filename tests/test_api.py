@@ -165,6 +165,54 @@ def parse_bulletin_xml(xml_doc):
                     'mer_nuages': to_int_or_null(get_attr(echeance, 'MERNUAGES'))
                 })
 
+    # Parse RISQUES historique
+    risques_historique = []
+    if bsh_elem is not None:
+        risques_elem = bsh_elem.find('RISQUES')
+        if risques_elem is not None:
+            for risque_jour in risques_elem.findall('RISQUE'):
+                risques_historique.append({
+                    'date': get_attr(risque_jour, 'DATE'),
+                    'risque_max': get_attr(risque_jour, 'RISQUEMAXI')
+                })
+
+    # Parse ENNEIGEMENTS historique
+    enneigements_historique = []
+    if bsh_elem is not None:
+        enneigements_elem = bsh_elem.find('ENNEIGEMENTS')
+        if enneigements_elem is not None:
+            for enneigement_jour in enneigements_elem.findall('ENNEIGEMENT'):
+                niveaux_hist = []
+                for niveau in enneigement_jour.findall('NIVEAU'):
+                    niveaux_hist.append({
+                        'altitude': to_int_or_null(get_attr(niveau, 'ALTI')),
+                        'nord': to_int_or_null(get_attr(niveau, 'N')),
+                        'sud': to_int_or_null(get_attr(niveau, 'S'))
+                    })
+                enneigements_historique.append({
+                    'date': get_attr(enneigement_jour, 'DATE'),
+                    'limite_sud': to_int_or_null(get_attr(enneigement_jour, 'LimiteSud')),
+                    'limite_nord': to_int_or_null(get_attr(enneigement_jour, 'LimiteNord')),
+                    'niveaux': niveaux_hist
+                })
+
+    # Parse NEIGEFRAICHE historique
+    neige_fraiche_historique = []
+    if bsh_elem is not None:
+        neige_fraiche_elem = bsh_elem.find('NEIGEFRAICHE')
+        if neige_fraiche_elem is not None:
+            for neige24h in neige_fraiche_elem.findall('NEIGE24H'):
+                neige_fraiche_historique.append({
+                    'date': get_attr(neige24h, 'DATE'),
+                    'min': to_int_or_null(get_attr(neige24h, 'SS24Min')),
+                    'max': to_int_or_null(get_attr(neige24h, 'SS24Max'))
+                })
+
+    # Add historical data to their respective sections
+    risque['historique'] = risques_historique
+    enneigement['historique'] = enneigements_historique
+    neige_fraiche['historique'] = neige_fraiche_historique
+
     meteo = {
         'altitude_vent_1': to_int_or_null(get_attr(meteo_elem, 'ALTITUDEVENT1')) if meteo_elem is not None else None,
         'altitude_vent_2': to_int_or_null(get_attr(meteo_elem, 'ALTITUDEVENT2')) if meteo_elem is not None else None,
@@ -313,9 +361,43 @@ def test_parse_bulletin_xml():
         assert 'pluie_neige' in first_hist
         assert 'vent' in first_hist
 
+    # Test risque historique (BSH/RISQUES)
+    assert 'historique' in result['risque']
+    risques_hist = result['risque']['historique']
+    assert len(risques_hist) > 0
+    if len(risques_hist) > 0:
+        first_risque = risques_hist[0]
+        assert 'date' in first_risque
+        assert 'risque_max' in first_risque
+
+    # Test enneigement historique (BSH/ENNEIGEMENTS)
+    assert 'historique' in result['enneigement']
+    enneigements_hist = result['enneigement']['historique']
+    assert len(enneigements_hist) > 0
+    if len(enneigements_hist) > 0:
+        first_enneigement = enneigements_hist[0]
+        assert 'date' in first_enneigement
+        assert 'limite_sud' in first_enneigement
+        assert 'limite_nord' in first_enneigement
+        assert 'niveaux' in first_enneigement
+        assert isinstance(first_enneigement['niveaux'], list)
+
+    # Test neige fraiche historique (BSH/NEIGEFRAICHE)
+    assert 'historique' in result['neige_fraiche']
+    neige_fraiche_hist = result['neige_fraiche']['historique']
+    assert len(neige_fraiche_hist) > 0
+    if len(neige_fraiche_hist) > 0:
+        first_neige = neige_fraiche_hist[0]
+        assert 'date' in first_neige
+        assert 'min' in first_neige
+        assert 'max' in first_neige
+
     print("✓ All tests passed!")
     print(f"✓ Échéances prévision: {len(result['meteo']['echeances'])}")
     print(f"✓ Échéances historique: {len(result['meteo']['echeances_historique'])}")
+    print(f"✓ Risques historique: {len(risques_hist)}")
+    print(f"✓ Enneigements historique: {len(enneigements_hist)}")
+    print(f"✓ Neige fraîche historique: {len(neige_fraiche_hist)}")
     return result
 
 
