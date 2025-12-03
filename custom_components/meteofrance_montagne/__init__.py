@@ -24,7 +24,7 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
     files_path: Path = Path(__file__).parent / "resources"
 
     await hass.http.async_register_static_paths([
-        StaticPathConfig("/api/meteofrance-montagne/resources",
+        StaticPathConfig("/api/meteofrance_montagne/resources",
                          str(files_path), should_cache),
     ])
 

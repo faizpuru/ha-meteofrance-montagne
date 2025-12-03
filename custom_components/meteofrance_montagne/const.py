@@ -1,4 +1,4 @@
-DOMAIN = "meteofrance-montagne"
+DOMAIN = "meteofrance_montagne"
 TIMEOUT = 5
 BASE_URL = "https://public-api.meteofrance.fr/public/DPBRA/v1"
 NAME = "Météo-France Montagne"

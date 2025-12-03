@@ -121,7 +121,7 @@ class MeteoFranceMontagneRisqueSensor(CoordinatorEntity, SensorEntity):
         if not self.coordinator.data or "risque" not in self.coordinator.data:
             return None
         risk_value = self.coordinator.data["risque"].get("risque_max")
-        return f"/api/meteofrance-montagne/resources/RISQUE/{risk_value}_transparent.png"
+        return f"/api/meteofrance_montagne/resources/RISQUE/{risk_value}_transparent.png"
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
@@ -456,7 +456,7 @@ class MeteoFranceMontagneRisqueJ2Sensor(CoordinatorEntity, SensorEntity):
         if "estimation_j2" not in risque or not risque["estimation_j2"]:
             return None
         risk_value = risque["estimation_j2"].get("risque_max")
-        return f"/api/meteofrance-montagne/resources/RISQUE/{risk_value}_transparent.png"
+        return f"/api/meteofrance_montagne/resources/RISQUE/{risk_value}_transparent.png"
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:

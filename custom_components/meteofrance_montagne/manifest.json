@@ -1,5 +1,5 @@
 {
-  "domain": "meteofrance-montagne",
+  "domain": "meteofrance_montagne",
   "name": "Météo-France Montagne",
   "codeowners": [
     "@faizpuru"
