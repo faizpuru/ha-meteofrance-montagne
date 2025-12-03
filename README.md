@@ -9,7 +9,7 @@ Intégration Home Assistant pour consulter les **Bulletins d'estimation du Risqu
 ## 🚀 Installation rapide
 
 [![Rajouter le dépôt dans HACS](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=faizpuru&repository=ha-meteofrance-montagne&category=integration)
-[![Ajouter l'intégration](https://my.home-assistant.io/badges/config_flow_start.svg)](https://my.home-assistant.io/redirect/config_flow_start/?domain=meteofrance-montagne)
+[![Ajouter l'intégration](https://my.home-assistant.io/badges/config_flow_start.svg)](https://my.home-assistant.io/redirect/config_flow_start/?domain=meteofrance_montagne)
 
 
 ## ✨ Fonctionnalités
@@ -47,7 +47,7 @@ Intégration Home Assistant pour consulter les **Bulletins d'estimation du Risqu
 ### Installation manuelle
 
 1. Téléchargez la dernière release depuis [GitHub](https://github.com/faizpuru/ha-meteofrance-montagne/releases)
-2. Copiez le dossier `custom_components/meteofrance-montagne` dans votre dossier `custom_components`
+2. Copiez le dossier `custom_components/meteofrance_montagne` dans votre dossier `custom_components`
 3. Redémarrez Home Assistant
 
 ## ⚙️ Configuration
