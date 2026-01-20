@@ -41,9 +41,29 @@ class MeteoFranceMontagneDataUpdateCoordinator(DataUpdateCoordinator):
         """Fetch data from API."""
         try:
             bulletin = await self.api.bulletin(self.massif_id)
-            _LOGGER.debug(bulletin["qualite"])
             bulletin_date = bulletin["dateBulletin"]
-            self.updated_at = datetime.fromisoformat(bulletin_date)
+            bulletin_datetime = datetime.fromisoformat(bulletin_date)
+
+            # Check if bulletin date has changed since last update
+            if self.updated_at is not None and bulletin_datetime == self.updated_at:
+                _LOGGER.debug(
+                    "Bulletin date unchanged (%s) for massif %s, skipping image download",
+                    bulletin_date,
+                    self.massif_name
+                )
+                # Return existing data without re-downloading images
+                if self.data:
+                    return self.data
+
+            # Bulletin has changed or first fetch, download everything
+            _LOGGER.debug(
+                "Bulletin date changed (old: %s, new: %s) for massif %s, downloading images",
+                self.updated_at,
+                bulletin_datetime,
+                self.massif_name
+            )
+            self.updated_at = bulletin_datetime
+
             # Fetch different images
             images = {
                 "rose_pentes": await self.api.rose_pentes(self.massif_id),
@@ -53,8 +73,6 @@ class MeteoFranceMontagneDataUpdateCoordinator(DataUpdateCoordinator):
                 "apercu_meteo": await self.api.apercu_meteo(self.massif_id),
                 "sept_derniers_jours": await self.api.sept_derniers_jours(self.massif_id)
             }
-
-            # Update timestamp only if we received valid data
 
             return {
                 "date": bulletin_date,
