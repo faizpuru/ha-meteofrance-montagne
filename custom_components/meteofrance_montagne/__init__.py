@@ -7,6 +7,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
+import homeassistant.helpers.config_validation as cv
 
 from .const import DOMAIN, CONF_MASSIF, CONF_TOKEN
 from .coordinator import MeteoFranceMontagneDataUpdateCoordinator
@@ -14,6 +15,8 @@ from .coordinator import MeteoFranceMontagneDataUpdateCoordinator
 _LOGGER = logging.getLogger(__name__)
 
 PLATFORMS = [Platform.IMAGE, Platform.SENSOR]
+
+CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
 
 
 async def async_setup(hass: HomeAssistant, config: dict) -> bool:
