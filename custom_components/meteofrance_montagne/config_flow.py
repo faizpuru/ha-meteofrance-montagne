@@ -10,7 +10,7 @@ from homeassistant.data_entry_flow import FlowResult
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from .api import MeteoFranceMontagneApi
-from .const import DOMAIN, CONF_TOKEN, CONF_MASSIF
+from .const import DOMAIN, CONF_TOKEN, CONF_MASSIF, API_PORTAL_URL
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -74,7 +74,7 @@ class MeteoFranceMontagneConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             }),
             errors=errors,
             description_placeholders={
-                "description": "Enter your Météo-France API token. This will be used for all massifs."
+                "api_portal_url": API_PORTAL_URL
             }
         )
 

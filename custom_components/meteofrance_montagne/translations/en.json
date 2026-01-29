@@ -4,7 +4,7 @@
         "step": {
             "api": {
                 "title": "Météo-France API Configuration",
-                "description": "Enter your Météo-France API token to access avalanche risk assessment bulletins (BRA).\n\nTo get a free token:\n1. Create an account on https://portail-api.meteofrance.fr/web/fr/api/DonneesPubliquesBRA\n2. Subscribe to the 'Données Publiques BRA' API\n3. Copy your API token\n\nThis token will be used for all your mountain ranges.",
+                "description": "Enter your Météo-France API token to access avalanche risk assessment bulletins (BRA).\n\nTo get a free token:\n1. Create an account on [{api_portal_url}]({api_portal_url})\n2. Subscribe to the 'Données Publiques BRA' API\n3. Copy your API token\n\nThis token will be used for all your mountain ranges.",
                 "data": {
                     "token": "API Token"
                 }
@@ -18,7 +18,7 @@
             },
             "department": {
                 "title": "Department Selection",
-                "description": "Select the department where the mountain range you want to monitor is located.\n\nDepartments are grouped by mountain massif (Alps, Pyrenees, Corsica).",
+                "description": "Select the department where the mountain range you want to monitor is located.\n",
                 "data": {
                     "department": "Department"
                 }
