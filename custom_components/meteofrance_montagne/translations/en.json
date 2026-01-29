@@ -18,7 +18,7 @@
             },
             "department": {
                 "title": "Department Selection",
-                "description": "Select the department where the mountain range you want to monitor is located.\n",
+                "description": "Select the department where the mountain range you want to monitor is located.",
                 "data": {
                     "department": "Department"
                 }
