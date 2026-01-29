@@ -18,7 +18,7 @@
             },
             "department": {
                 "title": "Choix du département",
-                "description": "Sélectionnez le département dans lequel se trouve le massif que vous souhaitez surveiller.\n\n.",
+                "description": "Sélectionnez le département dans lequel se trouve le massif que vous souhaitez surveiller.",
                 "data": {
                     "department": "Département"
                 }
