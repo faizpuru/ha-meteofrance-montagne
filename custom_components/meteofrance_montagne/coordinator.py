@@ -121,6 +121,9 @@ class MeteoFranceMontagneDataUpdateCoordinator(DataUpdateCoordinator):
 
         return {
             "date": bulletin_date,
+            "date_validite": bulletin["dateValidite"],
+            "amendement": bulletin["amendement"],
+            "attribution": bulletin["partenaires"],
             "risque": bulletin["risque"],
             "qualite": bulletin["qualite"],
             "enneigement": bulletin["enneigement"],

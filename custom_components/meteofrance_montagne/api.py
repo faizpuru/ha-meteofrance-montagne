@@ -89,6 +89,10 @@ class MeteoFranceMontagneApi:
                     return None
             return None
 
+        def to_bool_or_null(value):
+            """Convert "true"/"false" to a boolean or None."""
+            return {'true': True, 'false': False}.get(value.lower()) if value else None
+
         # Parse CARTOUCHERISQUE
         cartouche = root.find('CARTOUCHERISQUE')
         risque_elem = cartouche.find('RISQUE') if cartouche is not None else None
@@ -118,14 +122,14 @@ class MeteoFranceMontagneApi:
                 'commentaire': get_text(cartouche.find('CommentaireRisqueJ2')) if cartouche is not None else ''
             },
             'pentes_particulieres': {
-                'NE': to_int_or_null(get_attr(pente_elem, 'NE')) if pente_elem is not None else None,
-                'E': to_int_or_null(get_attr(pente_elem, 'E')) if pente_elem is not None else None,
-                'SE': to_int_or_null(get_attr(pente_elem, 'SE')) if pente_elem is not None else None,
-                'S': to_int_or_null(get_attr(pente_elem, 'S')) if pente_elem is not None else None,
-                'SW': to_int_or_null(get_attr(pente_elem, 'SW')) if pente_elem is not None else None,
-                'W': to_int_or_null(get_attr(pente_elem, 'W')) if pente_elem is not None else None,
-                'NW': to_int_or_null(get_attr(pente_elem, 'NW')) if pente_elem is not None else None,
-                'N': to_int_or_null(get_attr(pente_elem, 'N')) if pente_elem is not None else None,
+                'NE': to_bool_or_null(get_attr(pente_elem, 'NE')) if pente_elem is not None else None,
+                'E': to_bool_or_null(get_attr(pente_elem, 'E')) if pente_elem is not None else None,
+                'SE': to_bool_or_null(get_attr(pente_elem, 'SE')) if pente_elem is not None else None,
+                'S': to_bool_or_null(get_attr(pente_elem, 'S')) if pente_elem is not None else None,
+                'SW': to_bool_or_null(get_attr(pente_elem, 'SW')) if pente_elem is not None else None,
+                'W': to_bool_or_null(get_attr(pente_elem, 'W')) if pente_elem is not None else None,
+                'NW': to_bool_or_null(get_attr(pente_elem, 'NW')) if pente_elem is not None else None,
+                'N': to_bool_or_null(get_attr(pente_elem, 'N')) if pente_elem is not None else None,
                 'commentaire': get_attr(pente_elem, 'COMMENTAIRE') if pente_elem is not None else ''
             }
         }
@@ -302,7 +306,8 @@ class MeteoFranceMontagneApi:
             'qualite': qualite,
             'enneigement': enneigement,
             'neige_fraiche': neige_fraiche,
-            'meteo': meteo
+            'meteo': meteo,
+            'partenaires': get_text(root.find('TexteMeta/Partenaires')),
         }
 
         return result
