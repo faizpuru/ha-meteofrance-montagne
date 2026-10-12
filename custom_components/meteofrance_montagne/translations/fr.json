@@ -2,18 +2,11 @@
     "title": "Météo-France Montagne",
     "config": {
         "step": {
-            "api": {
+            "user": {
                 "title": "Configuration de l'API Météo-France",
-                "description": "Entrez votre jeton d'API Météo-France pour accéder aux bulletins d'estimation du risque d'avalanche (BRA).\n\nPour obtenir un jeton gratuit :\n1. Créez un compte sur [{api_portal_url}]({api_portal_url})\n2. Souscrivez à l'API 'Données Publiques BRA'\n3. Copiez votre jeton API\n\nCe jeton sera utilisé pour tous vos massifs.",
+                "description": "Entrez votre jeton d'API Météo-France pour accéder aux bulletins d'estimation du risque d'avalanche (BRA).\n\nPour obtenir un jeton gratuit :\n1. Créez un compte sur [{api_portal_url}]({api_portal_url})\n2. Souscrivez à l'API 'Données Publiques BRA'\n3. Copiez votre jeton API\n\nCe jeton sera utilisé pour tous vos massifs. Vous choisirez ensuite un premier massif.",
                 "data": {
                     "token": "Jeton d'API"
-                }
-            },
-            "select_api": {
-                "title": "Ajout d'un nouveau massif",
-                "description": "Vous allez ajouter un nouveau massif montagneux à surveiller.\n\nSi vous avez plusieurs jetons API, sélectionnez celui à utiliser.",
-                "data": {
-                    "api": "Configuration API"
                 }
             },
             "department": {
@@ -25,21 +18,21 @@
             },
             "massif": {
                 "title": "Choix du massif",
-                "description": "Sélectionnez le massif montagneux pour lequel vous souhaitez recevoir les bulletins d'estimation du risque d'avalanche.\n\nVous pourrez ajouter d'autres massifs par la suite en réexécutant cette intégration.",
+                "description": "Sélectionnez le massif montagneux pour lequel vous souhaitez recevoir les bulletins d'estimation du risque d'avalanche.\n\nVous pourrez ajouter d'autres massifs depuis la page de l'intégration, avec le bouton « Ajouter un massif ».",
                 "data": {
                     "massif": "Massif"
                 }
             },
             "reconfigure": {
                 "title": "Modification du jeton d'API",
-                "description": "Mettez à jour votre jeton d'API Météo-France.\n\nAttention : Ce changement affectera tous les massifs utilisant cette configuration API.",
+                "description": "Mettez à jour votre jeton d'API Météo-France.\n\nIl sera utilisé par tous vos massifs.",
                 "data": {
                     "token": "Jeton d'API"
                 }
             },
             "reauth_confirm": {
                 "title": "Jeton d'API refusé",
-                "description": "L'API Météo-France a refusé votre jeton. Saisissez un nouveau jeton obtenu sur [{api_portal_url}]({api_portal_url}).\n\nIl sera utilisé par tous les massifs partageant cette configuration API.",
+                "description": "L'API Météo-France a refusé votre jeton. Saisissez un nouveau jeton obtenu sur [{api_portal_url}]({api_portal_url}).\n\nIl sera utilisé par tous vos massifs.",
                 "data": {
                     "token": "Jeton d'API"
                 }
@@ -51,11 +44,102 @@
             "unknown": "Une erreur inconnue s'est produite. Consultez les logs de Home Assistant pour plus de détails."
         },
         "abort": {
-            "already_configured": "Ce massif est déjà configuré dans Home Assistant. Vous ne pouvez pas l'ajouter deux fois.",
-            "no_api": "Aucune configuration API trouvée. Vous devez d'abord configurer votre jeton d'API Météo-France avant d'ajouter un massif.",
-            "not_api": "Cette entrée n'est pas une configuration API et ne peut pas être reconfigurée.",
+            "single_instance_allowed": "Météo-France Montagne est déjà configuré. Pour ajouter un massif, utilisez le bouton « Ajouter un massif » sur la page de l'intégration.",
+            "cannot_connect": "Impossible de récupérer la liste des massifs auprès de l'API Météo-France. Réessayez plus tard.",
+            "invalid_auth": "Le jeton d'API n'est pas valide. Vérifiez que vous avez bien copié le jeton complet depuis le portail Météo-France.",
             "reconfigure_successful": "Le jeton d'API a été mis à jour avec succès. Tous vos massifs utiliseront désormais ce nouveau jeton.",
             "reauth_successful": "Le jeton d'API a été mis à jour avec succès. Tous vos massifs utiliseront désormais ce nouveau jeton."
+        }
+    },
+    "config_subentries": {
+        "massif": {
+            "entry_type": "Massif",
+            "initiate_flow": {
+                "user": "Ajouter un massif"
+            },
+            "step": {
+                "department": {
+                    "title": "Choix du département",
+                    "description": "Sélectionnez le département dans lequel se trouve le massif que vous souhaitez surveiller.",
+                    "data": {
+                        "department": "Département"
+                    }
+                },
+                "massif": {
+                    "title": "Choix du massif",
+                    "description": "Sélectionnez le massif montagneux pour lequel vous souhaitez recevoir les bulletins d'estimation du risque d'avalanche.",
+                    "data": {
+                        "massif": "Massif"
+                    }
+                }
+            },
+            "abort": {
+                "already_configured": "Ce massif est déjà configuré dans Home Assistant. Vous ne pouvez pas l'ajouter deux fois.",
+                "cannot_connect": "Impossible de récupérer la liste des massifs auprès de l'API Météo-France. Réessayez plus tard.",
+                "invalid_auth": "Le jeton d'API n'est pas valide. Vérifiez que vous avez bien copié le jeton complet depuis le portail Météo-France."
+            }
+        }
+    },
+    "entity": {
+        "sensor": {
+            "risque_max": {
+                "name": "Risque avalanche",
+                "state": {
+                    "1": "Faible",
+                    "2": "Limité",
+                    "3": "Marqué",
+                    "4": "Fort",
+                    "5": "Très fort"
+                }
+            },
+            "risque_prevision": {
+                "name": "Risque avalanche prévision",
+                "state": {
+                    "1": "Faible",
+                    "2": "Limité",
+                    "3": "Marqué",
+                    "4": "Fort",
+                    "5": "Très fort"
+                }
+            },
+            "enneigement_nord": {
+                "name": "Limite enneigement nord"
+            },
+            "enneigement_sud": {
+                "name": "Limite enneigement sud"
+            },
+            "neige_fraiche": {
+                "name": "Neige fraîche"
+            },
+            "meteo": {
+                "name": "Météo"
+            },
+            "stabilite": {
+                "name": "Stabilité du manteau neigeux"
+            },
+            "qualite_neige": {
+                "name": "Qualité de la neige"
+            }
+        },
+        "image": {
+            "rose_pentes": {
+                "name": "Rose des pentes"
+            },
+            "montagne_risques": {
+                "name": "Carte des risques"
+            },
+            "montagne_enneigement": {
+                "name": "Carte d'enneigement"
+            },
+            "graphe_neige_fraiche": {
+                "name": "Graphique neige fraîche"
+            },
+            "apercu_meteo": {
+                "name": "Aperçu météo"
+            },
+            "sept_derniers_jours": {
+                "name": "Sept derniers jours"
+            }
         }
     }
 }

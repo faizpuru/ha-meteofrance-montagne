@@ -4,9 +4,12 @@ BASE_URL = "https://public-api.meteofrance.fr/public/DPBRA/v1"
 API_PORTAL_URL = "https://portail-api.meteofrance.fr/web/fr/api/DonneesPubliquesBRA"
 NAME = "Météo-France Montagne"
 CONF_MASSIF = "massif"
+CONF_MASSIF_NAME = "massif_name"
 CONF_TOKEN = "token"
+SUBENTRY_TYPE_MASSIF = "massif"
 DEFAULT_TOKEN = ""
 UPDATE_INTERVAL = 1
+RESOURCES_URL = "/api/meteofrance_montagne/resources"
 IMAGE_TYPES = [
     "rose_pentes",
     "montagne_risques",
@@ -17,7 +20,8 @@ IMAGE_TYPES = [
 ]
 # Note: sept_derniers_jours_portrait existe dans le XML mais n'est pas accessible via l'API images
 
-# European avalanche risk scale (1-5)
+# European avalanche risk scale (1-5), also the sensor state options
+AVALANCHE_RISK_LEVELS = ["1", "2", "3", "4", "5"]
 AVALANCHE_RISK = {
     "1": "Faible",
     "2": "Limité",
