@@ -2,14 +2,25 @@
 import logging
 
 from pathlib import Path
+from types import MappingProxyType
+
 from homeassistant.components.http import StaticPathConfig
-from homeassistant.config_entries import ConfigEntry
+from homeassistant.config_entries import ConfigEntry, ConfigSubentry
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 import homeassistant.helpers.config_validation as cv
 
-from .const import DOMAIN, CONF_MASSIF, CONF_TOKEN
+from .const import (
+    CONF_MASSIF,
+    CONF_MASSIF_NAME,
+    CONF_TOKEN,
+    DOMAIN,
+    NAME,
+    RESOURCES_URL,
+    SUBENTRY_TYPE_MASSIF,
+)
 from .coordinator import MeteoFranceMontagneDataUpdateCoordinator
 
 _LOGGER = logging.getLogger(__name__)
@@ -18,68 +29,139 @@ PLATFORMS = [Platform.IMAGE, Platform.SENSOR]
 
 CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
 
+# One coordinator per massif, keyed by subentry id
+type MeteoFranceMontagneConfigEntry = ConfigEntry[
+    dict[str, MeteoFranceMontagneDataUpdateCoordinator]
+]
+
 
 async def async_setup(hass: HomeAssistant, config: dict) -> bool:
     """Set up the Météo-France Montagne component."""
-    hass.data.setdefault(DOMAIN, {})
-
     should_cache = True
     files_path: Path = Path(__file__).parent / "resources"
 
     await hass.http.async_register_static_paths([
-        StaticPathConfig("/api/meteofrance_montagne/resources",
-                         str(files_path), should_cache),
+        StaticPathConfig(RESOURCES_URL, str(files_path), should_cache),
     ])
+
+    await async_migrate_integration(hass)
 
     return True
 
 
-async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+async def async_setup_entry(
+    hass: HomeAssistant, entry: MeteoFranceMontagneConfigEntry
+) -> bool:
     """Set up Météo-France Montagne from a config entry."""
-
-    # If this is an API configuration entry (parent), nothing to set up
-    if CONF_TOKEN in entry.data:
-        return True
-
-    # Get the token from the parent entry
-    parent_entry = hass.config_entries.async_get_entry(entry.data["parent_entry_id"])
-    if not parent_entry:
-        _LOGGER.error("Parent entry not found for massif %s", entry.data.get("massif_name"))
-        return False
-
-    token = parent_entry.data.get(CONF_TOKEN, "")
-    if not token:
-        _LOGGER.error("No token found in parent entry")
-        return False
-
     session = async_get_clientsession(hass)
 
-    coordinator = MeteoFranceMontagneDataUpdateCoordinator(
-        hass,
-        entry,
-        session,
-        entry.data[CONF_MASSIF],
-        entry.data["massif_name"],
-        token
-    )
+    coordinators = {}
+    for subentry in entry.subentries.values():
+        if subentry.subentry_type != SUBENTRY_TYPE_MASSIF:
+            continue
+        coordinator = MeteoFranceMontagneDataUpdateCoordinator(
+            hass,
+            entry,
+            session,
+            subentry.data[CONF_MASSIF],
+            subentry.data[CONF_MASSIF_NAME],
+            entry.data[CONF_TOKEN],
+        )
+        await coordinator.async_config_entry_first_refresh()
+        coordinators[subentry.subentry_id] = coordinator
 
-    await coordinator.async_config_entry_first_refresh()
-
-    hass.data[DOMAIN][entry.entry_id] = coordinator
+    entry.runtime_data = coordinators
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
+    # Reload when a massif is added or removed
+    entry.async_on_unload(entry.add_update_listener(async_update_listener))
+
     return True
 
 
-async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+async def async_unload_entry(
+    hass: HomeAssistant, entry: MeteoFranceMontagneConfigEntry
+) -> bool:
     """Unload a config entry."""
-    # If this is an API configuration entry (parent), nothing to unload
-    if CONF_TOKEN in entry.data:
-        return True
+    return await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
 
-    unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
-    if unload_ok:
-        hass.data[DOMAIN].pop(entry.entry_id)
 
-    return unload_ok
+async def async_update_listener(
+    hass: HomeAssistant, entry: MeteoFranceMontagneConfigEntry
+) -> None:
+    """Reload the entry when its subentries change."""
+    await hass.config_entries.async_reload(entry.entry_id)
+
+
+async def async_migrate_integration(hass: HomeAssistant) -> None:
+    """Turn the version 2 massif entries into subentries of their API entry."""
+    entries = hass.config_entries.async_entries(DOMAIN)
+    if not any(entry.version < 3 for entry in entries):
+        return
+
+    entity_registry = er.async_get(hass)
+
+    for parent in entries:
+        if parent.version >= 3 or CONF_TOKEN not in parent.data:
+            continue
+
+        for child in entries:
+            if child.data.get("parent_entry_id") != parent.entry_id:
+                continue
+
+            unique_id = str(child.data[CONF_MASSIF])
+            subentry = next(
+                (
+                    sub for sub in parent.subentries.values()
+                    if sub.unique_id == unique_id
+                ),
+                None,
+            )
+            if subentry is None:
+                subentry = ConfigSubentry(
+                    data=MappingProxyType({
+                        CONF_MASSIF: child.data[CONF_MASSIF],
+                        CONF_MASSIF_NAME: child.data[CONF_MASSIF_NAME],
+                    }),
+                    subentry_type=SUBENTRY_TYPE_MASSIF,
+                    title=child.title,
+                    unique_id=unique_id,
+                )
+                hass.config_entries.async_add_subentry(parent, subentry)
+
+            # Move the entities before removing the child entry, which would
+            # otherwise delete them along with their history
+            for entity in er.async_entries_for_config_entry(
+                entity_registry, child.entry_id
+            ):
+                disabled_by = entity.disabled_by
+                # Moving to an enabled entry clears CONFIG_ENTRY, keep it disabled
+                if disabled_by is er.RegistryEntryDisabler.CONFIG_ENTRY:
+                    disabled_by = er.RegistryEntryDisabler.USER
+                entity_registry.async_update_entity(
+                    entity.entity_id,
+                    config_entry_id=parent.entry_id,
+                    config_subentry_id=subentry.subentry_id,
+                    disabled_by=disabled_by,
+                )
+
+            await hass.config_entries.async_remove(child.entry_id)
+
+        hass.config_entries.async_update_entry(
+            parent, title=NAME, version=3, minor_version=1
+        )
+
+
+async def async_migrate_entry(
+    hass: HomeAssistant, entry: MeteoFranceMontagneConfigEntry
+) -> bool:
+    """Handle entries left behind by async_migrate_integration."""
+    if entry.version < 3:
+        # A massif whose API entry was deleted cannot be migrated
+        _LOGGER.error(
+            "Cannot migrate massif %s: its API configuration no longer exists. "
+            "Delete it and add the massif again",
+            entry.title,
+        )
+    return False

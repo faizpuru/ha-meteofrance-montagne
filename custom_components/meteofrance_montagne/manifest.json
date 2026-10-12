@@ -12,5 +12,6 @@
   "iot_class": "cloud_polling",
   "issue_tracker": "https://github.com/faizpuru/ha-meteofrance-montagne/issues",
   "requirements": [],
+  "single_config_entry": true,
   "version": "2.0.4"
 }

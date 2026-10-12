@@ -60,18 +60,23 @@ Intégration Home Assistant pour consulter les **Bulletins d'estimation du Risqu
 4. Entrez votre **token API Météo-France**
 5. Sélectionnez le **département** puis le **massif** à surveiller
 
+Chaque massif apparaît comme un appareil qui regroupe ses 14 entités.
+
 ### Ajouter d'autres massifs
 
-1. Réexécutez l'intégration (Ajouter une intégration > Météo-France Montagne)
-2. L'intégration utilisera automatiquement votre token API existant
-3. Sélectionnez un nouveau département et massif
+1. Allez dans **Paramètres > Appareils et Services > Météo-France Montagne**
+2. Cliquez sur **"Ajouter un massif"**
+3. Sélectionnez un département puis un massif
+
+Pour retirer un massif, supprimez-le depuis la même page : ses entités sont supprimées avec lui.
 
 ### Modifier le token API
 
-1. Allez dans **Paramètres > Appareils et Services**
-2. Trouvez l'entrée **"API Météo-France Montagne"**
-3. Cliquez sur **"Reconfigurer"**
-4. Entrez le nouveau token
+1. Allez dans **Paramètres > Appareils et Services > Météo-France Montagne**
+2. Cliquez sur **"Reconfigurer"**
+3. Entrez le nouveau token
+
+Si Météo-France refuse le token, Home Assistant vous demande automatiquement d'en saisir un nouveau.
 
 > ⚠️ **Note** : Le changement de token affectera tous vos massifs configurés.
 
@@ -82,7 +87,7 @@ Pour chaque massif configuré, l'intégration crée **8 sensors** et **6 images*
 ### 📊 Sensors
 
 #### 1. Risque Avalanche (`sensor.{massif}_risque_avalanche`)
-- **État** : Niveau de risque en texte (Faible, Limité, Marqué, Fort, Très Fort)
+- **État** : Niveau de risque sur l'échelle européenne, de `1` à `5`. L'interface l'affiche en texte (Faible, Limité, Marqué, Fort, Très fort).
 - **Image** : Pictogramme officiel du niveau de risque
 - **Attributs** :
   - `risque_max_valeur` : Niveau numérique (1-5)
@@ -126,7 +131,7 @@ Pour chaque massif configuré, l'intégration crée **8 sensors** et **6 images*
   - `last_update` : Date du bulletin
 
 #### 2. Risque Avalanche Prévision (`sensor.{massif}_risque_avalanche_prevision`)
-- **État** : Niveau de risque prévu en texte
+- **État** : Niveau de risque prévu, de `1` à `5`, affiché en texte dans l'interface
 - **Image** : Pictogramme du niveau prévu
 - **Attributs** :
   - `risque_max_valeur` : Niveau numérique (1-5)
@@ -180,6 +185,7 @@ Pour chaque massif configuré, l'intégration crée **8 sensors** et **6 images*
 
 #### 7. Stabilité du Manteau Neigeux (`sensor.{massif}_stabilite_du_manteau_neigeux`)
 - **État** : Situation avalancheuse typique principale (SAT)
+- **Image** : Pictogramme de la situation
 - **Attributs** :
   - `titre` : Titre de la section stabilité
   - `texte` : Analyse de la stabilité
@@ -201,12 +207,14 @@ Pour chaque massif configuré, l'intégration crée **8 sensors** et **6 images*
 ### 🖼️ Images
 
 Six images PNG actualisées quotidiennement :
-- `image.{massif}_rose_pentes` : Rose des pentes dangereuses
-- `image.{massif}_montagne_risques` : Cartographie des risques
-- `image.{massif}_montagne_enneigement` : État de l'enneigement
-- `image.{massif}_graphe_neige_fraiche` : Historique neige fraîche
+- `image.{massif}_rose_des_pentes` : Rose des pentes dangereuses
+- `image.{massif}_carte_des_risques` : Cartographie des risques
+- `image.{massif}_carte_d_enneigement` : État de l'enneigement
+- `image.{massif}_graphique_neige_fraiche` : Historique neige fraîche
 - `image.{massif}_apercu_meteo` : Aperçu météo montagne
 - `image.{massif}_sept_derniers_jours` : Synthèse 7 derniers jours
+
+> Les identifiants ci-dessus sont ceux d'une installation en français. Les installations existantes gardent leurs identifiants.
 
 ## 🤖 Exemples d'automatisations
 
@@ -218,13 +226,12 @@ Six images PNG actualisées quotidiennement :
       - trigger: numeric_state
         entity_id:
           - sensor.aravis_risque_avalanche
-        attribute: risque_max_valeur
-        above: 1
+        above: 2
     actions:
       - action: notify.persistent_notification
         data:
           message: >-
-            Risque {{ states('sensor.aravis_risque_avalanche') }} dans les Aravis
+            Risque {{ state_translated('sensor.aravis_risque_avalanche') }} dans les Aravis
             aujourd'hui  
 ```
 
@@ -261,7 +268,7 @@ cards:
     name: Enneigement Versant Nord
 
   - type: picture-entity
-    entity: image.aravis_montagne_risques
+    entity: image.aravis_carte_des_risques
     show_state: false
     show_name: false
 

@@ -6,8 +6,14 @@ import logging
 from typing import Any
 
 import voluptuous as vol
-from homeassistant import config_entries
-from homeassistant.data_entry_flow import FlowResult
+from homeassistant.config_entries import (
+    ConfigEntry,
+    ConfigFlow,
+    ConfigFlowResult,
+    ConfigSubentryFlow,
+    SubentryFlowResult,
+)
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from .api import (
@@ -15,279 +21,228 @@ from .api import (
     MeteoFranceMontagneApiError,
     MeteoFranceMontagneAuthError,
 )
-from .const import DOMAIN, CONF_TOKEN, CONF_MASSIF, API_PORTAL_URL
+from .const import (
+    API_PORTAL_URL,
+    CONF_MASSIF,
+    CONF_MASSIF_NAME,
+    CONF_TOKEN,
+    DOMAIN,
+    NAME,
+    SUBENTRY_TYPE_MASSIF,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
+TOKEN_SCHEMA = vol.Schema({vol.Required(CONF_TOKEN): str})
 
-class MeteoFranceMontagneConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
-    """Handle a config flow for Météo-France Montagne."""
 
-    VERSION = 2
+async def _async_validate_token(hass: HomeAssistant, token: str) -> dict[str, str]:
+    """Validate the token with a test API call and return form errors."""
+    session = async_get_clientsession(hass)
+    api = MeteoFranceMontagneApi(session, hass, token)
+    try:
+        await api.rose_pentes(2)  # Test API call
+    except MeteoFranceMontagneAuthError:
+        return {"base": "invalid_auth"}
+    except MeteoFranceMontagneApiError as err:
+        _LOGGER.error("Error validating token: %s", err)
+        return {"base": "cannot_connect"}
+    except Exception:  # pylint: disable=broad-except
+        _LOGGER.exception("Unexpected error validating token")
+        return {"base": "unknown"}
+    return {}
 
-    def __init__(self) -> None:
-        """Initialize flow."""
-        self._departments_data = {}
-        self._selected_department = None
-        self._parent_entry_id = None
 
-    async def _async_validate_token(self, token: str) -> dict[str, str]:
-        """Validate the token with a test API call and return form errors."""
-        session = async_get_clientsession(self.hass)
-        api = MeteoFranceMontagneApi(session, self.hass, token)
-        try:
-            await api.rose_pentes(2)  # Test API call
-        except MeteoFranceMontagneAuthError:
-            return {"base": "invalid_auth"}
-        except MeteoFranceMontagneApiError as err:
-            _LOGGER.error("Error validating token: %s", err)
-            return {"base": "cannot_connect"}
-        except Exception:  # pylint: disable=broad-except
-            _LOGGER.exception("Unexpected error validating token")
-            return {"base": "unknown"}
-        return {}
+class MassifSelectionMixin:
+    """Department then massif selection, shared by the config and subentry flows."""
 
-    async def _async_update_token(
-        self, parent_entry: config_entries.ConfigEntry, token: str
-    ) -> None:
-        """Store the new token and reload every massif using it."""
-        self.hass.config_entries.async_update_entry(
-            parent_entry,
-            data={CONF_TOKEN: token}
-        )
-        for entry in self.hass.config_entries.async_entries(DOMAIN):
-            if entry.data.get("parent_entry_id") == parent_entry.entry_id:
-                await self.hass.config_entries.async_reload(entry.entry_id)
+    _departments_data: dict[str, list[dict[str, Any]]]
+    _selected_department: str
 
-    async def async_step_user(
-        self, user_input: dict[str, Any] | None = None
-    ) -> FlowResult:
-        """Handle the initial step - show menu to choose action."""
-        # Check if we already have an API configuration (parent) entry
-        api_entries = [
-            entry for entry in self._async_current_entries()
-            if CONF_TOKEN in entry.data
-        ]
+    def _get_token(self) -> str:
+        """Return the API token used to list the massifs."""
+        raise NotImplementedError
 
-        # If no API config exists, force creating one
-        if not api_entries:
-            return await self.async_step_api()
+    async def _async_create_massif(self, massif: dict[str, Any], title: str):
+        """Create the massif once selected."""
+        raise NotImplementedError
 
-        # If API config exists, go to massif selection
-        return await self.async_step_select_api()
-
-    async def async_step_api(
-        self, user_input: dict[str, str] | None = None
-    ) -> FlowResult:
-        """Handle API configuration (parent entry)."""
-        errors = {}
-
-        if user_input is not None:
-            token = user_input[CONF_TOKEN]
-
-            # Validate token by trying to fetch data
-            errors = await self._async_validate_token(token)
-            if not errors:
-                # Create the API configuration entry
-                return self.async_create_entry(
-                    title="API Météo-France Montagne",
-                    data={CONF_TOKEN: token},
-                )
-
-        return self.async_show_form(
-            step_id="api",
-            data_schema=vol.Schema({
-                vol.Required(CONF_TOKEN): str,
-            }),
-            errors=errors,
-            description_placeholders={
-                "api_portal_url": API_PORTAL_URL
-            }
-        )
-
-    async def async_step_select_api(
-        self, user_input: dict[str, Any] | None = None
-    ) -> FlowResult:
-        """Select which API configuration to use for this massif."""
-        api_entries = [
-            entry for entry in self._async_current_entries()
-            if CONF_TOKEN in entry.data
-        ]
-
-        if not api_entries:
-            return await self.async_step_api()
-
-        # If only one API config, use it automatically
-        if len(api_entries) == 1:
-            self._parent_entry_id = api_entries[0].entry_id
-            return await self.async_step_department()
-
-        # Multiple API configs - let user choose
-        if user_input is not None:
-            self._parent_entry_id = user_input["api"]
-            return await self.async_step_department()
-
-        return self.async_show_form(
-            step_id="select_api",
-            data_schema=vol.Schema({
-                vol.Required("api"): vol.In({
-                    entry.entry_id: entry.title
-                    for entry in api_entries
-                })
-            })
-        )
-
-    async def async_step_department(
-        self, user_input: dict[str, Any] | None = None
-    ) -> FlowResult:
+    async def async_step_department(self, user_input: dict[str, Any] | None = None):
         """Handle department selection."""
-        errors = {}
-
-        # Get parent entry to retrieve token
-        parent_entry = self.hass.config_entries.async_get_entry(self._parent_entry_id)
-        if not parent_entry:
-            return self.async_abort(reason="no_api")
-
-        token = parent_entry.data.get(CONF_TOKEN)
-
-        if user_input is None:
-            # Fetch departments list
-            try:
-                session = async_get_clientsession(self.hass)
-                api = MeteoFranceMontagneApi(session, self.hass, token)
-                self._departments_data = await api.list_massif()
-
-                return self.async_show_form(
-                    step_id="department",
-                    data_schema=vol.Schema({
-                        vol.Required("department"): vol.In(
-                            sorted(list(self._departments_data.keys()))
-                        )
-                    }),
-                    errors=errors,
-                )
-
-            except Exception as err:
-                _LOGGER.error("Error fetching departments: %s", err)
-                errors["base"] = "cannot_connect"
-                return self.async_abort(reason="cannot_connect")
-
-        else:
-            # User selected a department
+        if user_input is not None:
             self._selected_department = user_input["department"]
             return await self.async_step_massif()
 
-    async def async_step_massif(
-        self, user_input: dict[str, Any] | None = None
-    ) -> FlowResult:
+        try:
+            session = async_get_clientsession(self.hass)
+            api = MeteoFranceMontagneApi(session, self.hass, self._get_token())
+            self._departments_data = await api.list_massif()
+        except MeteoFranceMontagneAuthError:
+            return self.async_abort(reason="invalid_auth")
+        except Exception as err:  # pylint: disable=broad-except
+            _LOGGER.error("Error fetching departments: %s", err)
+            return self.async_abort(reason="cannot_connect")
+
+        return self.async_show_form(
+            step_id="department",
+            data_schema=vol.Schema({
+                vol.Required("department"): vol.In(
+                    sorted(self._departments_data.keys())
+                )
+            }),
+        )
+
+    async def async_step_massif(self, user_input: dict[str, Any] | None = None):
         """Handle massif selection."""
-        errors = {}
+        massifs = self._departments_data[self._selected_department]
 
-        if user_input is None:
-            # Show massifs for selected department
-            massifs = self._departments_data[self._selected_department]
-            massif_titles = [massif["title"] for massif in massifs]
-
-            return self.async_show_form(
-                step_id="massif",
-                data_schema=vol.Schema({
-                    vol.Required("massif"): vol.In(sorted(massif_titles))
-                }),
-                errors=errors,
+        if user_input is not None:
+            massif = next(
+                massif for massif in massifs
+                if massif["title"] == user_input["massif"]
             )
+            title = f"{self._selected_department} - {massif['title']}"
+            return await self._async_create_massif(massif, title)
 
-        else:
-            # User selected a massif
-            title = user_input["massif"]
-            name = self._selected_department + " - " + title
+        return self.async_show_form(
+            step_id="massif",
+            data_schema=vol.Schema({
+                vol.Required("massif"): vol.In(
+                    sorted(massif["title"] for massif in massifs)
+                )
+            }),
+        )
 
-            # Find corresponding code
-            selected_massif = next(
-                massif for massif in self._departments_data[self._selected_department]
-                if massif["title"] == title
-            )
 
-            # Check for duplicates
-            await self.async_set_unique_id(f"{self._parent_entry_id}_{selected_massif['code']}")
-            self._abort_if_unique_id_configured()
+def _massif_data(massif: dict[str, Any]) -> dict[str, Any]:
+    """Return the subentry data of a massif."""
+    return {CONF_MASSIF: massif["code"], CONF_MASSIF_NAME: massif["title"]}
 
-            # Create child entry
-            return self.async_create_entry(
-                title=name,
-                data={
-                    CONF_MASSIF: selected_massif["code"],
-                    "massif_name": title,
-                    "parent_entry_id": self._parent_entry_id,
-                },
-            )
 
-    async def async_step_reconfigure(
+class MeteoFranceMontagneConfigFlow(MassifSelectionMixin, ConfigFlow, domain=DOMAIN):
+    """Handle a config flow for Météo-France Montagne."""
+
+    VERSION = 3
+    MINOR_VERSION = 1
+
+    def __init__(self) -> None:
+        """Initialize flow."""
+        self._token = ""
+
+    @classmethod
+    @callback
+    def async_get_supported_subentry_types(
+        cls, config_entry: ConfigEntry
+    ) -> dict[str, type[ConfigSubentryFlow]]:
+        """Return the subentry types supported by this integration."""
+        return {SUBENTRY_TYPE_MASSIF: MassifSubentryFlowHandler}
+
+    def _get_token(self) -> str:
+        return self._token
+
+    async def async_step_user(
         self, user_input: dict[str, Any] | None = None
-    ) -> FlowResult:
-        """Handle reconfiguration of the API token."""
-        entry = self.hass.config_entries.async_get_entry(self.context["entry_id"])
-
-        if not entry or CONF_TOKEN not in entry.data:
-            return self.async_abort(reason="not_api")
-
+    ) -> ConfigFlowResult:
+        """Ask for the API token, then for a first massif."""
         errors = {}
 
         if user_input is not None:
-            token = user_input[CONF_TOKEN]
-
-            # Validate token, then update it for all massifs
-            errors = await self._async_validate_token(token)
+            errors = await _async_validate_token(self.hass, user_input[CONF_TOKEN])
             if not errors:
-                await self._async_update_token(entry, token)
-                return self.async_abort(reason="reconfigure_successful")
+                self._token = user_input[CONF_TOKEN]
+                return await self.async_step_department()
+
+        return self.async_show_form(
+            step_id="user",
+            data_schema=TOKEN_SCHEMA,
+            errors=errors,
+            description_placeholders={"api_portal_url": API_PORTAL_URL},
+        )
+
+    async def _async_create_massif(
+        self, massif: dict[str, Any], title: str
+    ) -> ConfigFlowResult:
+        return self.async_create_entry(
+            title=NAME,
+            data={CONF_TOKEN: self._token},
+            subentries=[{
+                "data": _massif_data(massif),
+                "subentry_type": SUBENTRY_TYPE_MASSIF,
+                "title": title,
+                "unique_id": str(massif["code"]),
+            }],
+        )
+
+    async def async_step_reconfigure(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Handle reconfiguration of the API token."""
+        entry = self._get_reconfigure_entry()
+        errors = {}
+
+        if user_input is not None:
+            errors = await _async_validate_token(self.hass, user_input[CONF_TOKEN])
+            if not errors:
+                return self.async_update_reload_and_abort(
+                    entry, data_updates={CONF_TOKEN: user_input[CONF_TOKEN]}
+                )
 
         return self.async_show_form(
             step_id="reconfigure",
-            data_schema=vol.Schema({
-                vol.Required(CONF_TOKEN, default=entry.data.get(CONF_TOKEN, "")): str,
-            }),
+            data_schema=self.add_suggested_values_to_schema(TOKEN_SCHEMA, entry.data),
             errors=errors,
         )
 
     async def async_step_reauth(
         self, entry_data: Mapping[str, Any]
-    ) -> FlowResult:
-        """Handle a rejected API token, raised by a massif entry."""
-        self._parent_entry_id = entry_data["parent_entry_id"]
+    ) -> ConfigFlowResult:
+        """Handle a rejected API token."""
         return await self.async_step_reauth_confirm()
 
     async def async_step_reauth_confirm(
         self, user_input: dict[str, Any] | None = None
-    ) -> FlowResult:
+    ) -> ConfigFlowResult:
         """Ask for a new API token."""
-        parent_entry = self.hass.config_entries.async_get_entry(self._parent_entry_id)
-        if not parent_entry:
-            return self.async_abort(reason="no_api")
-
         errors = {}
 
         if user_input is not None:
-            token = user_input[CONF_TOKEN]
-
-            errors = await self._async_validate_token(token)
+            errors = await _async_validate_token(self.hass, user_input[CONF_TOKEN])
             if not errors:
-                await self._async_update_token(parent_entry, token)
-                # Other massifs sharing this token opened their own reauth flow
-                for flow in self._async_in_progress():
-                    if (
-                        flow["flow_id"] != self.flow_id
-                        and flow["context"].get("source") == config_entries.SOURCE_REAUTH
-                    ):
-                        self.hass.config_entries.flow.async_abort(flow["flow_id"])
-                return self.async_abort(reason="reauth_successful")
+                return self.async_update_reload_and_abort(
+                    self._get_reauth_entry(),
+                    data_updates={CONF_TOKEN: user_input[CONF_TOKEN]},
+                )
 
         return self.async_show_form(
             step_id="reauth_confirm",
-            data_schema=vol.Schema({
-                vol.Required(CONF_TOKEN): str,
-            }),
+            data_schema=TOKEN_SCHEMA,
             errors=errors,
-            description_placeholders={
-                "api_portal_url": API_PORTAL_URL
-            }
+            description_placeholders={"api_portal_url": API_PORTAL_URL},
+        )
+
+
+class MassifSubentryFlowHandler(MassifSelectionMixin, ConfigSubentryFlow):
+    """Add a massif to the API entry."""
+
+    def _get_token(self) -> str:
+        return self._get_entry().data[CONF_TOKEN]
+
+    async def async_step_user(
+        self, user_input: dict[str, Any] | None = None
+    ) -> SubentryFlowResult:
+        """Start with the department selection."""
+        return await self.async_step_department()
+
+    async def _async_create_massif(
+        self, massif: dict[str, Any], title: str
+    ) -> SubentryFlowResult:
+        unique_id = str(massif["code"])
+        if any(
+            subentry.unique_id == unique_id
+            for subentry in self._get_entry().subentries.values()
+        ):
+            return self.async_abort(reason="already_configured")
+
+        return self.async_create_entry(
+            title=title, data=_massif_data(massif), unique_id=unique_id
         )

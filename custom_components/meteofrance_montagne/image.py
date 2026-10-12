@@ -2,41 +2,35 @@
 from __future__ import annotations
 
 import logging
-from typing import Any
 from homeassistant.components.image import ImageEntity, Image
-from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, callback
-from homeassistant.helpers.entity_platform import AddEntitiesCallback
-from homeassistant.helpers.update_coordinator import (
-    CoordinatorEntity,
-)
+from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
-from .const import DOMAIN, IMAGE_TYPES
+from . import MeteoFranceMontagneConfigEntry
+from .const import IMAGE_TYPES
 from .coordinator import MeteoFranceMontagneDataUpdateCoordinator
+from .entity import MeteoFranceMontagneEntity
 
 _LOGGER = logging.getLogger(__name__)
 
 
 async def async_setup_entry(
-    hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
+    hass: HomeAssistant,
+    entry: MeteoFranceMontagneConfigEntry,
+    async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
     """Set up the Météo-France Montagne image platform."""
-    coordinator = hass.data[DOMAIN][entry.entry_id]
-
-    entities = []
-
-    for image_type in IMAGE_TYPES:
-        entities.append(
-            MeteoFranceMontagneImage(
-                coordinator,
-                image_type
-            )
+    for subentry_id, coordinator in entry.runtime_data.items():
+        async_add_entities(
+            [
+                MeteoFranceMontagneImage(coordinator, image_type)
+                for image_type in IMAGE_TYPES
+            ],
+            config_subentry_id=subentry_id,
         )
 
-    async_add_entities(entities)
 
-
-class MeteoFranceMontagneImage(CoordinatorEntity, ImageEntity):
+class MeteoFranceMontagneImage(MeteoFranceMontagneEntity, ImageEntity):
     """Representation of a Météo-France Montagne image."""
 
     _attr_content_type = "image/png"
@@ -47,13 +41,11 @@ class MeteoFranceMontagneImage(CoordinatorEntity, ImageEntity):
         image_type: str,
     ) -> None:
         """Initialize the image entity."""
-        super().__init__(coordinator)
+        super().__init__(coordinator, image_type)
         # CoordinatorEntity does not chain __init__: set up the rotating access tokens
         ImageEntity.__init__(self, coordinator.hass)
         self._image_type = image_type
-        self._attr_unique_id = f"{coordinator.massif_id}_{image_type}"
-        self._attr_name = f"{coordinator.massif_name} {
-            image_type.replace('_', ' ').title()}"
+        self._attr_translation_key = image_type
         self._attr_image_last_updated = coordinator.updated_at
         if coordinator.data is not None:
             self._cached_image = Image(

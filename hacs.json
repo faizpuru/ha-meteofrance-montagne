@@ -3,5 +3,6 @@
     "render_readme": true,
     "zip_release": true,
     "filename": "meteofrance_montagne.zip",
-    "country": ["FR"]
+    "country": ["FR"],
+    "homeassistant": "2025.4.0"
   }
