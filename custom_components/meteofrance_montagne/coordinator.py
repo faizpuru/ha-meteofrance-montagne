@@ -2,12 +2,17 @@
 from datetime import timedelta, datetime
 import logging
 
+from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
+from homeassistant.exceptions import ConfigEntryAuthFailed
+from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 import aiohttp
-import homeassistant.util.dt as dt_util
 
-from .api import MeteoFranceMontagneApi
+from .api import (
+    MeteoFranceMontagneApi,
+    MeteoFranceMontagneApiError,
+    MeteoFranceMontagneAuthError,
+)
 from .const import DOMAIN, UPDATE_INTERVAL
 
 _LOGGER = logging.getLogger(__name__)
@@ -19,6 +24,7 @@ class MeteoFranceMontagneDataUpdateCoordinator(DataUpdateCoordinator):
     def __init__(
         self,
         hass: HomeAssistant,
+        config_entry: ConfigEntry,
         session: aiohttp.ClientSession,
         massif_id: str,
         massif_name: str,
@@ -33,6 +39,7 @@ class MeteoFranceMontagneDataUpdateCoordinator(DataUpdateCoordinator):
         super().__init__(
             hass,
             _LOGGER,
+            config_entry=config_entry,
             name=DOMAIN,
             update_interval=timedelta(hours=UPDATE_INTERVAL),
         )
@@ -40,52 +47,61 @@ class MeteoFranceMontagneDataUpdateCoordinator(DataUpdateCoordinator):
     async def _async_update_data(self):
         """Fetch data from API."""
         try:
-            bulletin = await self.api.bulletin(self.massif_id)
-            bulletin_date = bulletin["dateBulletin"]
-            bulletin_datetime = datetime.fromisoformat(bulletin_date)
+            return await self._async_fetch()
+        except MeteoFranceMontagneAuthError as error:
+            raise ConfigEntryAuthFailed(str(error)) from error
+        except MeteoFranceMontagneApiError as error:
+            raise UpdateFailed(
+                f"Error fetching data for massif {self.massif_name}: {error}") from error
+        except (KeyError, ValueError) as error:
+            raise UpdateFailed(
+                f"Invalid bulletin for massif {self.massif_name}: {error}") from error
 
-            # Check if bulletin date has changed since last update
-            if self.updated_at is not None and bulletin_datetime == self.updated_at:
-                _LOGGER.debug(
-                    "Bulletin date unchanged (%s) for massif %s, skipping image download",
-                    bulletin_date,
-                    self.massif_name
-                )
-                # Return existing data without re-downloading images
-                if self.data:
-                    return self.data
+    async def _async_fetch(self):
+        """Fetch the bulletin, and the images when the bulletin has changed."""
+        bulletin = await self.api.bulletin(self.massif_id)
+        bulletin_date = bulletin["dateBulletin"]
+        bulletin_datetime = datetime.fromisoformat(bulletin_date)
 
-            # Bulletin has changed or first fetch, download everything
+        # Check if bulletin date has changed since last update
+        if self.data and bulletin_datetime == self.updated_at:
             _LOGGER.debug(
-                "Bulletin date changed (old: %s, new: %s) for massif %s, downloading images",
-                self.updated_at,
-                bulletin_datetime,
+                "Bulletin date unchanged (%s) for massif %s, skipping image download",
+                bulletin_date,
                 self.massif_name
             )
-            self.updated_at = bulletin_datetime
+            # Return existing data without re-downloading images
+            return self.data
 
-            # Fetch different images
-            images = {
-                "rose_pentes": await self.api.rose_pentes(self.massif_id),
-                "montagne_risques": await self.api.montagne_risques(self.massif_id),
-                "montagne_enneigement": await self.api.montagne_enneigement(self.massif_id),
-                "graphe_neige_fraiche": await self.api.graphe_neige_fraiche(self.massif_id),
-                "apercu_meteo": await self.api.apercu_meteo(self.massif_id),
-                "sept_derniers_jours": await self.api.sept_derniers_jours(self.massif_id)
-            }
+        # Bulletin has changed or first fetch, download everything
+        _LOGGER.debug(
+            "Bulletin date changed (old: %s, new: %s) for massif %s, downloading images",
+            self.updated_at,
+            bulletin_datetime,
+            self.massif_name
+        )
 
-            return {
-                "date": bulletin_date,
-                "risque": bulletin["risque"],
-                "qualite": bulletin["qualite"],
-                "enneigement": bulletin["enneigement"],
-                "neige_fraiche": bulletin["neige_fraiche"],
-                "stabilite": bulletin["stabilite"],
-                "meteo": bulletin["meteo"],
-                "massif_name": self.massif_name,
-                **images
-            }
+        # Fetch different images
+        images = {
+            "rose_pentes": await self.api.rose_pentes(self.massif_id),
+            "montagne_risques": await self.api.montagne_risques(self.massif_id),
+            "montagne_enneigement": await self.api.montagne_enneigement(self.massif_id),
+            "graphe_neige_fraiche": await self.api.graphe_neige_fraiche(self.massif_id),
+            "apercu_meteo": await self.api.apercu_meteo(self.massif_id),
+            "sept_derniers_jours": await self.api.sept_derniers_jours(self.massif_id)
+        }
 
-        except Exception as error:
-            _LOGGER.error("Error fetching data: %s", error)
-            return None
+        # Only mark the bulletin as processed once everything was downloaded
+        self.updated_at = bulletin_datetime
+
+        return {
+            "date": bulletin_date,
+            "risque": bulletin["risque"],
+            "qualite": bulletin["qualite"],
+            "enneigement": bulletin["enneigement"],
+            "neige_fraiche": bulletin["neige_fraiche"],
+            "stabilite": bulletin["stabilite"],
+            "meteo": bulletin["meteo"],
+            "massif_name": self.massif_name,
+            **images
+        }

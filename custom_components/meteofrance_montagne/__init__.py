@@ -56,6 +56,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     coordinator = MeteoFranceMontagneDataUpdateCoordinator(
         hass,
+        entry,
         session,
         entry.data[CONF_MASSIF],
         entry.data["massif_name"],

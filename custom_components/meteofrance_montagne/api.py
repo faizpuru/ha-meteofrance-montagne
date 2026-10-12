@@ -13,6 +13,14 @@ from homeassistant.core import HomeAssistant
 _LOGGER = logging.getLogger(__name__)
 
 
+class MeteoFranceMontagneApiError(Exception):
+    """Error while communicating with the Météo-France API."""
+
+
+class MeteoFranceMontagneAuthError(MeteoFranceMontagneApiError):
+    """The API token was rejected."""
+
+
 class MeteoFranceMontagneApi:
 
     def __init__(self, session: aiohttp.ClientSession, hass: HomeAssistant, token: str):
@@ -313,8 +321,7 @@ class MeteoFranceMontagneApi:
             return result
 
         except etree.XMLSyntaxError as e:
-            _LOGGER.error("XML parsing error: %s", str(e))
-            return None
+            raise MeteoFranceMontagneApiError(f"XML parsing error: {e}") from e
 
     async def image(self, image_type, massif):
         """Get image for a massif."""
@@ -348,37 +355,23 @@ class MeteoFranceMontagneApi:
 
     async def call_api(self, url):
         """Fetch data from a given URL."""
+        timeout = aiohttp.ClientTimeout(total=TIMEOUT)
+        _LOGGER.debug("Executing URL fetch: %s", url)
+        headers = {
+            "accept": "*/*",
+            "apikey": self.token
+        }
         try:
-            timeout = aiohttp.ClientTimeout(total=TIMEOUT)
-            _LOGGER.debug("Executing URL fetch: %s", url)
-            headers = {
-                "accept": "*/*",
-                "apikey": self.token
-            }
             async with self.session.get(url, timeout=timeout, headers=headers) as response:
                 if response.status == 401:
-                    _LOGGER.error("Authentication failed (401). Check your API token.")
-                    raise Exception("Invalid API token (401 Unauthorized)")
+                    raise MeteoFranceMontagneAuthError("Invalid API token (401 Unauthorized)")
                 if response.status != 200:
-                    _LOGGER.error(
-                        "HTTP request failed with status: %s for url: %s",
-                        response.status,
-                        url,
-                    )
-                    raise Exception(f"HTTP {response.status} error")
+                    raise MeteoFranceMontagneApiError(
+                        f"HTTP {response.status} error for url: {url}")
                 return await response.read()
 
         except aiohttp.ClientError as e:
-            _LOGGER.error(
-                "Client error during HTTP request for url: %s. Exception: %s", url, e)
-            raise
-        except asyncio.TimeoutError:
-            _LOGGER.error(
-                "Timeout error while fetching data from url: %s", url)
-            raise
-        except Exception as e:
-            if "Invalid API token" in str(e) or "HTTP" in str(e):
-                raise
-            _LOGGER.error(
-                "Unexpected exception with url: %s. Exception: %s", url, e)
-            raise
+            raise MeteoFranceMontagneApiError(
+                f"Client error for url: {url}: {e}") from e
+        except asyncio.TimeoutError as e:
+            raise MeteoFranceMontagneApiError(f"Timeout fetching url: {url}") from e
