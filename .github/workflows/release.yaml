@@ -14,7 +14,7 @@ jobs:
       contents: write
     steps:
       - name: "Checkout the repository"
-        uses: "actions/checkout@v4"
+        uses: "actions/checkout@v7"
 
       - name: "Adjust version number"
         shell: "bash"
@@ -29,6 +29,6 @@ jobs:
           zip meteofrance_montagne.zip -r ./
 
       - name: "Upload the ZIP file to the release"
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           files: ${{ github.workspace }}/custom_components/meteofrance_montagne/meteofrance_montagne.zip
