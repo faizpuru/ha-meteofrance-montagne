@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import logging
 from typing import Any
-import secrets
 from homeassistant.components.image import ImageEntity, Image
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, callback
@@ -49,11 +48,12 @@ class MeteoFranceMontagneImage(CoordinatorEntity, ImageEntity):
     ) -> None:
         """Initialize the image entity."""
         super().__init__(coordinator)
+        # CoordinatorEntity does not chain __init__: set up the rotating access tokens
+        ImageEntity.__init__(self, coordinator.hass)
         self._image_type = image_type
         self._attr_unique_id = f"{coordinator.massif_id}_{image_type}"
         self._attr_name = f"{coordinator.massif_name} {
             image_type.replace('_', ' ').title()}"
-        self._access_tokens = [secrets.token_hex()]
         self._attr_image_last_updated = coordinator.updated_at
         if coordinator.data is not None:
             self._cached_image = Image(
@@ -67,11 +67,6 @@ class MeteoFranceMontagneImage(CoordinatorEntity, ImageEntity):
             self._cached_image = Image(
                 "image/png", self.coordinator.data.get(self._image_type))
             self.async_write_ha_state()
-
-    @property
-    def access_tokens(self) -> list[str]:
-        """Return access tokens."""
-        return self._access_tokens
 
     async def async_image(self) -> bytes | None:
         """Return bytes of image."""

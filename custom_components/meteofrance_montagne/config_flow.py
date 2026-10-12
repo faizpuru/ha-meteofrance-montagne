@@ -1,6 +1,7 @@
 """Config flow for Météo-France Montagne integration."""
 from __future__ import annotations
 
+from collections.abc import Mapping
 import logging
 from typing import Any
 
@@ -9,7 +10,11 @@ from homeassistant import config_entries
 from homeassistant.data_entry_flow import FlowResult
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
-from .api import MeteoFranceMontagneApi
+from .api import (
+    MeteoFranceMontagneApi,
+    MeteoFranceMontagneApiError,
+    MeteoFranceMontagneAuthError,
+)
 from .const import DOMAIN, CONF_TOKEN, CONF_MASSIF, API_PORTAL_URL
 
 _LOGGER = logging.getLogger(__name__)
@@ -25,6 +30,34 @@ class MeteoFranceMontagneConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         self._departments_data = {}
         self._selected_department = None
         self._parent_entry_id = None
+
+    async def _async_validate_token(self, token: str) -> dict[str, str]:
+        """Validate the token with a test API call and return form errors."""
+        session = async_get_clientsession(self.hass)
+        api = MeteoFranceMontagneApi(session, self.hass, token)
+        try:
+            await api.rose_pentes(2)  # Test API call
+        except MeteoFranceMontagneAuthError:
+            return {"base": "invalid_auth"}
+        except MeteoFranceMontagneApiError as err:
+            _LOGGER.error("Error validating token: %s", err)
+            return {"base": "cannot_connect"}
+        except Exception:  # pylint: disable=broad-except
+            _LOGGER.exception("Unexpected error validating token")
+            return {"base": "unknown"}
+        return {}
+
+    async def _async_update_token(
+        self, parent_entry: config_entries.ConfigEntry, token: str
+    ) -> None:
+        """Store the new token and reload every massif using it."""
+        self.hass.config_entries.async_update_entry(
+            parent_entry,
+            data={CONF_TOKEN: token}
+        )
+        for entry in self.hass.config_entries.async_entries(DOMAIN):
+            if entry.data.get("parent_entry_id") == parent_entry.entry_id:
+                await self.hass.config_entries.async_reload(entry.entry_id)
 
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
@@ -53,19 +86,13 @@ class MeteoFranceMontagneConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             token = user_input[CONF_TOKEN]
 
             # Validate token by trying to fetch data
-            try:
-                session = async_get_clientsession(self.hass)
-                api = MeteoFranceMontagneApi(session, self.hass, token)
-                await api.rose_pentes(2)  # Test API call
-
+            errors = await self._async_validate_token(token)
+            if not errors:
                 # Create the API configuration entry
                 return self.async_create_entry(
                     title="API Météo-France Montagne",
                     data={CONF_TOKEN: token},
                 )
-            except Exception as err:
-                _LOGGER.error("Error validating token: %s", err)
-                errors["base"] = "cannot_connect"
 
         return self.async_show_form(
             step_id="api",
@@ -208,22 +235,11 @@ class MeteoFranceMontagneConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         if user_input is not None:
             token = user_input[CONF_TOKEN]
 
-            # Validate token
-            try:
-                session = async_get_clientsession(self.hass)
-                api = MeteoFranceMontagneApi(session, self.hass, token)
-                await api.rose_pentes(2)  # Test API call
-
-                # Update the entry
-                self.hass.config_entries.async_update_entry(
-                    entry,
-                    data={CONF_TOKEN: token}
-                )
-                await self.hass.config_entries.async_reload(entry.entry_id)
+            # Validate token, then update it for all massifs
+            errors = await self._async_validate_token(token)
+            if not errors:
+                await self._async_update_token(entry, token)
                 return self.async_abort(reason="reconfigure_successful")
-            except Exception as err:
-                _LOGGER.error("Error validating token: %s", err)
-                errors["base"] = "cannot_connect"
 
         return self.async_show_form(
             step_id="reconfigure",
@@ -231,4 +247,47 @@ class MeteoFranceMontagneConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 vol.Required(CONF_TOKEN, default=entry.data.get(CONF_TOKEN, "")): str,
             }),
             errors=errors,
+        )
+
+    async def async_step_reauth(
+        self, entry_data: Mapping[str, Any]
+    ) -> FlowResult:
+        """Handle a rejected API token, raised by a massif entry."""
+        self._parent_entry_id = entry_data["parent_entry_id"]
+        return await self.async_step_reauth_confirm()
+
+    async def async_step_reauth_confirm(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Ask for a new API token."""
+        parent_entry = self.hass.config_entries.async_get_entry(self._parent_entry_id)
+        if not parent_entry:
+            return self.async_abort(reason="no_api")
+
+        errors = {}
+
+        if user_input is not None:
+            token = user_input[CONF_TOKEN]
+
+            errors = await self._async_validate_token(token)
+            if not errors:
+                await self._async_update_token(parent_entry, token)
+                # Other massifs sharing this token opened their own reauth flow
+                for flow in self._async_in_progress():
+                    if (
+                        flow["flow_id"] != self.flow_id
+                        and flow["context"].get("source") == config_entries.SOURCE_REAUTH
+                    ):
+                        self.hass.config_entries.flow.async_abort(flow["flow_id"])
+                return self.async_abort(reason="reauth_successful")
+
+        return self.async_show_form(
+            step_id="reauth_confirm",
+            data_schema=vol.Schema({
+                vol.Required(CONF_TOKEN): str,
+            }),
+            errors=errors,
+            description_placeholders={
+                "api_portal_url": API_PORTAL_URL
+            }
         )

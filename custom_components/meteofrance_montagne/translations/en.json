@@ -36,6 +36,13 @@
                 "data": {
                     "token": "API Token"
                 }
+            },
+            "reauth_confirm": {
+                "title": "API Token Rejected",
+                "description": "The Météo-France API rejected your token. Enter a new token from [{api_portal_url}]({api_portal_url}).\n\nIt will be used by all mountain ranges sharing this API configuration.",
+                "data": {
+                    "token": "API Token"
+                }
             }
         },
         "error": {
@@ -47,7 +54,8 @@
             "already_configured": "This mountain range is already configured in Home Assistant. You cannot add it twice.",
             "no_api": "No API configuration found. You must first configure your Météo-France API token before adding a mountain range.",
             "not_api": "This entry is not an API configuration and cannot be reconfigured.",
-            "reconfigure_successful": "The API token has been successfully updated. All your mountain ranges will now use this new token."
+            "reconfigure_successful": "The API token has been successfully updated. All your mountain ranges will now use this new token.",
+            "reauth_successful": "The API token has been successfully updated. All your mountain ranges will now use this new token."
         }
     }
 }

@@ -36,6 +36,13 @@
                 "data": {
                     "token": "Jeton d'API"
                 }
+            },
+            "reauth_confirm": {
+                "title": "Jeton d'API refusé",
+                "description": "L'API Météo-France a refusé votre jeton. Saisissez un nouveau jeton obtenu sur [{api_portal_url}]({api_portal_url}).\n\nIl sera utilisé par tous les massifs partageant cette configuration API.",
+                "data": {
+                    "token": "Jeton d'API"
+                }
             }
         },
         "error": {
@@ -47,7 +54,8 @@
             "already_configured": "Ce massif est déjà configuré dans Home Assistant. Vous ne pouvez pas l'ajouter deux fois.",
             "no_api": "Aucune configuration API trouvée. Vous devez d'abord configurer votre jeton d'API Météo-France avant d'ajouter un massif.",
             "not_api": "Cette entrée n'est pas une configuration API et ne peut pas être reconfigurée.",
-            "reconfigure_successful": "Le jeton d'API a été mis à jour avec succès. Tous vos massifs utiliseront désormais ce nouveau jeton."
+            "reconfigure_successful": "Le jeton d'API a été mis à jour avec succès. Tous vos massifs utiliseront désormais ce nouveau jeton.",
+            "reauth_successful": "Le jeton d'API a été mis à jour avec succès. Tous vos massifs utiliseront désormais ce nouveau jeton."
         }
     }
 }
