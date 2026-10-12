@@ -1,4 +1,5 @@
 """Coordinator for fetching Météo-France Montagne data."""
+import asyncio
 from datetime import timedelta, datetime
 import logging
 
@@ -6,6 +7,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryAuthFailed
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
+from homeassistant.util import dt as dt_util
 import aiohttp
 
 from .api import (
@@ -14,7 +16,7 @@ from .api import (
     MeteoFranceMontagneAuthError,
     MeteoFranceMontagneOffSeason,
 )
-from .const import DOMAIN, OFF_SEASON_UPDATE_INTERVAL, UPDATE_INTERVAL
+from .const import DOMAIN, IMAGE_TYPES, OFF_SEASON_UPDATE_INTERVAL, UPDATE_INTERVAL
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -87,6 +89,11 @@ class MeteoFranceMontagneDataUpdateCoordinator(DataUpdateCoordinator):
         bulletin = await self.api.bulletin(self.massif_id)
         bulletin_date = bulletin["dateBulletin"]
         bulletin_datetime = datetime.fromisoformat(bulletin_date)
+        if bulletin_datetime.tzinfo is None:
+            # Bulletin times are French local times (written "around 4 pm")
+            bulletin_datetime = bulletin_datetime.replace(
+                tzinfo=dt_util.get_time_zone("Europe/Paris"))
+        bulletin_datetime = dt_util.as_utc(bulletin_datetime)
 
         # Check if bulletin date has changed since last update
         if self.data and bulletin_datetime == self.updated_at:
@@ -106,15 +113,11 @@ class MeteoFranceMontagneDataUpdateCoordinator(DataUpdateCoordinator):
             self.massif_name
         )
 
-        # Fetch different images
-        images = {
-            "rose_pentes": await self.api.rose_pentes(self.massif_id),
-            "montagne_risques": await self.api.montagne_risques(self.massif_id),
-            "montagne_enneigement": await self.api.montagne_enneigement(self.massif_id),
-            "graphe_neige_fraiche": await self.api.graphe_neige_fraiche(self.massif_id),
-            "apercu_meteo": await self.api.apercu_meteo(self.massif_id),
-            "sept_derniers_jours": await self.api.sept_derniers_jours(self.massif_id)
-        }
+        # Fetch the images in parallel
+        contents = await asyncio.gather(*(
+            getattr(self.api, image_type)(self.massif_id) for image_type in IMAGE_TYPES
+        ))
+        images = dict(zip(IMAGE_TYPES, contents))
 
         # Only mark the bulletin as processed once everything was downloaded
         self.updated_at = bulletin_datetime
