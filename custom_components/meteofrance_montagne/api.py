@@ -3,7 +3,7 @@ import aiohttp
 import asyncio
 import logging
 import json
-from lxml import etree
+import xml.etree.ElementTree as ET
 
 
 from .const import TIMEOUT, BASE_URL
@@ -316,11 +316,11 @@ class MeteoFranceMontagneApi:
         """Get avalanche bulletin for a massif."""
         response = await self.call_api(f"{BASE_URL}/massif/BRA?id-massif={massif}&format=xml")
         try:
-            xml_doc = etree.fromstring(response)
+            xml_doc = ET.fromstring(response)
             result = self.parse_bulletin_xml(xml_doc)
             return result
 
-        except etree.XMLSyntaxError as e:
+        except ET.ParseError as e:
             raise MeteoFranceMontagneApiError(f"XML parsing error: {e}") from e
 
     async def image(self, image_type, massif):

@@ -1,6 +1,6 @@
 """Tests for the MeteoFranceMontagneApi XML parsing."""
 import os
-from lxml import etree
+import xml.etree.ElementTree as ET
 
 
 def parse_bulletin_xml(xml_doc):
@@ -254,7 +254,7 @@ def test_parse_bulletin_xml():
     """Test parsing of XML bulletin."""
     # Load and parse the XML
     sample_xml = load_sample_xml()
-    xml_doc = etree.fromstring(sample_xml.encode('utf-8'))
+    xml_doc = ET.fromstring(sample_xml.encode('utf-8'))
     result = parse_bulletin_xml(xml_doc)
 
     # Test basic structure
