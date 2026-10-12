@@ -162,11 +162,14 @@ Pour chaque massif configuré, l'intégration crée **8 sensors** et **6 images*
 - Structure identique au sensor Nord, avec données spécifiques au versant sud
 
 #### 5. Neige Fraîche (`sensor.{massif}_neige_fraiche`)
-- **État** : Altitude de la station de mesure (en mètres)
-- **Classe** : Distance (METERS)
+- **État** : Neige tombée en 24h lors de la dernière analyse, valeur haute de la fourchette (en cm). Chaque mesure couvre 24h, de 06h UTC à 06h UTC le lendemain.
+- **Classe** : Distance (CENTIMETERS)
 - **Attributs** :
+  - `min_cm` : Valeur basse de la fourchette de la dernière analyse
+  - `date_mesure` : Date de la dernière analyse
+  - `previsions` : Neige fraîche prévue pour le jour du bulletin et le lendemain (même format que `mesures`)
   - `altitude_mesure_m` : Altitude de mesure
-  - `mesures` : Liste des cumuls de neige fraîche
+  - `mesures` : Liste des cumuls de neige fraîche (4 analyses puis 2 prévisions)
     ```json
     [
       {"date": "2025-11-18", "min_cm": 5, "max_cm": 10},
@@ -243,14 +246,14 @@ Six images PNG actualisées quotidiennement :
       - platform: state
         entity_id: sensor.aravis_neige_fraiche
     condition:
-      - condition: template
-        value_template: >
-          {{ state_attr('sensor.aravis_neige_fraiche', 'mesures')[0].max_cm | int > 10 }}
+      - condition: numeric_state
+        entity_id: sensor.aravis_neige_fraiche
+        above: 10
     action:
       - service: notify.persistent_notification
         data:
           message: >
-            🌨️ {{ state_attr('sensor.aravis_neige_fraiche', 'mesures')[0].max_cm }}cm
+            🌨️ {{ states('sensor.aravis_neige_fraiche') }}cm
             de neige fraîche dans les Aravis !
 ```
 
