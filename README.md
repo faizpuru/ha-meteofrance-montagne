@@ -97,8 +97,10 @@ Pour chaque massif configuré, l'intégration crée **8 sensors** et **6 images*
   - `commentaire` : Commentaire général
   - `departs_spontanes` : Risque de départs naturels
   - `declenchements_skieurs` : Risque de déclenchements accidentels
-  - `altitude_limite_m` : Altitude de séparation des zones (si 2 zones)
-  - `zones` : Liste des zones d'altitude
+  - `date_validite` : Fin de validité du bulletin. Le bulletin est rédigé vers 16h et le risque vaut pour le lendemain, jusqu'à 18h.
+  - `amendement` : `true` si le bulletin a été corrigé
+  - `altitude_limite_m` : Altitude de séparation des zones (si 2 zones d'altitude)
+  - `zones` : Liste des zones de risque, séparées par l'altitude ou par l'orientation
     ```json
     // Cas 1 : 2 zones distinctes
     [
@@ -117,7 +119,13 @@ Pour chaque massif configuré, l'intégration crée **8 sensors** et **6 images*
       }
     ]
 
-    // Cas 2 : Risque uniforme (pas d'attribut altitude)
+    // Cas 2 : 2 zones géographiques (E/O ou S/N, sans altitude)
+    [
+      {"valeur": "3", "texte": "Marqué", "couleur": "#FF9900", "localisation": "E"},
+      {"valeur": "2", "texte": "Limité", "couleur": "#FFFF00", "localisation": "O"}
+    ]
+
+    // Cas 3 : Risque uniforme (pas d'attribut altitude)
     [
       {
         "valeur": "3",

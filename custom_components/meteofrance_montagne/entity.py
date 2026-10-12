@@ -4,7 +4,7 @@ from __future__ import annotations
 from homeassistant.helpers.device_registry import DeviceEntryType, DeviceInfo
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .const import DOMAIN
+from .const import ATTRIBUTION, DOMAIN
 from .coordinator import MeteoFranceMontagneDataUpdateCoordinator
 
 
@@ -28,3 +28,8 @@ class MeteoFranceMontagneEntity(
             manufacturer="Météo-France",
             entry_type=DeviceEntryType.SERVICE,
         )
+
+    @property
+    def attribution(self) -> str:
+        """Return the credits of the bulletin."""
+        return (self.coordinator.data or {}).get("attribution") or ATTRIBUTION

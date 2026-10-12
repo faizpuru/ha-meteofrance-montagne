@@ -66,6 +66,8 @@ def _risque_attrs(data: dict) -> dict[str, Any]:
         "commentaire": _clean_text(risque.get("commentaire")),
         "departs_spontanes": _clean_text(risque.get("naturel")),
         "declenchements_skieurs": _clean_text(risque.get("accidentel")),
+        "date_validite": data.get("date_validite"),
+        "amendement": data.get("amendement"),
         "last_update": data.get("date"),
     }
 
@@ -73,37 +75,26 @@ def _risque_attrs(data: dict) -> dict[str, Any]:
     if altitude_limite is not None:
         attrs["altitude_limite_m"] = altitude_limite
 
-    # Build zones list
+    # Build zones list: split by altitude (LOC "<2100" / ">2100") or by
+    # orientation (LOC "E"/"O" or "S"/"N", no altitude limit)
     zones = []
-
-    if risk_1 := risque.get("risque_1"):
-        risk_1_value = risk_1.get("valeur")
-        zone_1 = {
-            "valeur": risk_1_value,
-            "texte": AVALANCHE_RISK.get(str(risk_1_value), "") if risk_1_value else "",
-            "couleur": AVALANCHE_RISK_COLORS.get(str(risk_1_value), "") if risk_1_value else "",
+    for index in (1, 2):
+        risk = risque.get(f"risque_{index}") or {}
+        if not (value := risk.get("valeur")):
+            continue
+        zone = {
+            "valeur": value,
+            "texte": AVALANCHE_RISK.get(str(value), ""),
+            "couleur": AVALANCHE_RISK_COLORS.get(str(value), ""),
         }
-        # Add altitude range only if there's a limit (2 zones)
         if altitude_limite is not None:
-            zone_1["altitude"] = f"<{altitude_limite}m"
+            zone["altitude"] = f"{'<' if index == 1 else '>'}{altitude_limite}m"
+        elif risk.get("localisation"):
+            zone["localisation"] = risk["localisation"]
         # Add evolution only if not empty
-        if risk_1.get("evolution"):
-            zone_1["evolution"] = risk_1.get("evolution")
-        zones.append(zone_1)
-
-    # Only add zone 2 if there's an altitude limit
-    if altitude_limite is not None and (risk_2 := risque.get("risque_2")):
-        risk_2_value = risk_2.get("valeur")
-        zone_2 = {
-            "valeur": risk_2_value,
-            "texte": AVALANCHE_RISK.get(str(risk_2_value), "") if risk_2_value else "",
-            "couleur": AVALANCHE_RISK_COLORS.get(str(risk_2_value), "") if risk_2_value else "",
-            "altitude": f">{altitude_limite}m",
-        }
-        # Add evolution only if not empty
-        if risk_2.get("evolution"):
-            zone_2["evolution"] = risk_2.get("evolution")
-        zones.append(zone_2)
+        if risk.get("evolution"):
+            zone["evolution"] = risk["evolution"]
+        zones.append(zone)
 
     if zones:
         attrs["zones"] = zones
