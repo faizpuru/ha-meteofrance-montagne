@@ -29,7 +29,7 @@ Intégration Home Assistant pour consulter les **Bulletins d'estimation du Risqu
 
 1. Créez un compte sur [https://portail-api.meteofrance.fr](https://portail-api.meteofrance.fr/web/fr/api/DonneesPubliquesBRA)
 2. Souscrivez à l'API **"Données Publiques BRA"** (gratuite)
-3. Copiez votre token API depuis votre espace personnel
+3. Générez une **clé API** (« API Key ») depuis votre espace personnel et copiez-la. N'utilisez pas un jeton OAuth2 : il expire au bout d'une heure.
 
 ### Via HACS (recommandé)
 
@@ -283,6 +283,10 @@ cards:
 ```
 
 ## 🔧 Dépannage
+
+### Hors saison (juin à novembre)
+
+Météo-France ne publie les bulletins que de début novembre à fin mai. Hors saison, les entités restent disponibles mais sans valeur, avec les attributs `hors_saison: true` et `message` (le message de Météo-France). L'intégration interroge alors l'API toutes les 6 heures et reprend toute seule avec le premier bulletin de la saison.
 
 ### Les données ne se mettent pas à jour
 

@@ -12,8 +12,9 @@ from .api import (
     MeteoFranceMontagneApi,
     MeteoFranceMontagneApiError,
     MeteoFranceMontagneAuthError,
+    MeteoFranceMontagneOffSeason,
 )
-from .const import DOMAIN, UPDATE_INTERVAL
+from .const import DOMAIN, OFF_SEASON_UPDATE_INTERVAL, UPDATE_INTERVAL
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -47,7 +48,9 @@ class MeteoFranceMontagneDataUpdateCoordinator(DataUpdateCoordinator):
     async def _async_update_data(self):
         """Fetch data from API."""
         try:
-            return await self._async_fetch()
+            data = await self._async_fetch()
+        except MeteoFranceMontagneOffSeason as off_season:
+            return self._off_season_data(str(off_season))
         except MeteoFranceMontagneAuthError as error:
             raise ConfigEntryAuthFailed(str(error)) from error
         except MeteoFranceMontagneApiError as error:
@@ -56,6 +59,28 @@ class MeteoFranceMontagneDataUpdateCoordinator(DataUpdateCoordinator):
         except (KeyError, ValueError) as error:
             raise UpdateFailed(
                 f"Invalid bulletin for massif {self.massif_name}: {error}") from error
+
+        if self.update_interval != timedelta(hours=UPDATE_INTERVAL):
+            _LOGGER.info("Bulletins are back for massif %s", self.massif_name)
+            self.update_interval = timedelta(hours=UPDATE_INTERVAL)
+        return data
+
+    def _off_season_data(self, message: str) -> dict:
+        """Return the data of a massif without bulletin, polled less often."""
+        if self.update_interval != timedelta(hours=OFF_SEASON_UPDATE_INTERVAL):
+            _LOGGER.info(
+                "No bulletin for massif %s outside the season: %s",
+                self.massif_name,
+                message,
+            )
+            self.update_interval = timedelta(hours=OFF_SEASON_UPDATE_INTERVAL)
+        # Download the images again with the first bulletin of the season
+        self.updated_at = None
+        return {
+            "hors_saison": True,
+            "message": message,
+            "massif_name": self.massif_name,
+        }
 
     async def _async_fetch(self):
         """Fetch the bulletin, and the images when the bulletin has changed."""
