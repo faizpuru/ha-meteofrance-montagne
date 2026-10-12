@@ -422,6 +422,17 @@ class MeteoFranceMontagneSensor(MeteoFranceMontagneEntity, SensorEntity):
 
     entity_description: MeteoFranceMontagneSensorEntityDescription
 
+    # Large lists, already holding the last days of the bulletin: keep them
+    # out of the recorder database
+    _unrecorded_attributes = frozenset({
+        "echeances",
+        "echeances_historique",
+        "historique",
+        "mesures",
+        "niveaux",
+        "previsions",
+    })
+
     def __init__(
         self,
         coordinator: MeteoFranceMontagneDataUpdateCoordinator,
