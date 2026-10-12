@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass
+from datetime import date, datetime
 import logging
 from typing import Any
 
@@ -184,19 +185,54 @@ def _enneigement_attrs(orientation: str) -> Callable[[dict], dict[str, Any]]:
     return attrs_fn
 
 
+def _parse_day(value: str | None) -> date | None:
+    try:
+        return datetime.fromisoformat(value).date()
+    except (TypeError, ValueError):
+        return None
+
+
+def _neige_fraiche_split(data: dict) -> tuple[list[dict], list[dict]]:
+    """Split the 24h fresh snow measures into analyses and forecasts.
+
+    Each measure covers 06 UTC to 06 UTC the next day, starting on its date:
+    the ones starting on the bulletin day or later are forecasts.
+    """
+    bulletin_day = _parse_day(data.get("date"))
+    analyses, previsions = [], []
+    for mesure in data["neige_fraiche"].get("mesures", []):
+        day = _parse_day(mesure.get("date"))
+        if bulletin_day and day and day >= bulletin_day:
+            previsions.append(mesure)
+        else:
+            analyses.append(mesure)
+    return analyses, previsions
+
+
+def _mesure_attrs(mesure: dict) -> dict[str, Any]:
+    return {
+        "date": mesure.get("date"),
+        "min_cm": mesure.get("min"),
+        "max_cm": mesure.get("max"),
+    }
+
+
+def _neige_fraiche_value(data: dict) -> StateType:
+    analyses, _ = _neige_fraiche_split(data)
+    return analyses[-1].get("max") if analyses else None
+
+
 def _neige_fraiche_attrs(data: dict) -> dict[str, Any]:
     neige = data["neige_fraiche"]
+    analyses, previsions = _neige_fraiche_split(data)
+    derniere = analyses[-1] if analyses else {}
     attrs = {
+        "min_cm": derniere.get("min"),
+        "date_mesure": derniere.get("date"),
+        "previsions": [_mesure_attrs(mesure) for mesure in previsions],
         "altitude_mesure_m": neige.get("altitude_ss"),
         "last_update": data.get("date"),
-        "mesures": [
-            {
-                "date": mesure.get("date"),
-                "min_cm": mesure.get("min"),
-                "max_cm": mesure.get("max"),
-            }
-            for mesure in neige.get("mesures", [])
-        ],
+        "mesures": [_mesure_attrs(mesure) for mesure in neige.get("mesures", [])],
     }
 
     # Add historical fresh snow data
@@ -329,9 +365,11 @@ SENSOR_TYPES: tuple[MeteoFranceMontagneSensorEntityDescription, ...] = (
         translation_key="neige_fraiche",
         icon="mdi:weather-snowy-heavy",
         device_class=SensorDeviceClass.DISTANCE,
-        native_unit_of_measurement=UnitOfLength.METERS,
+        native_unit_of_measurement=UnitOfLength.CENTIMETERS,
         state_class=SensorStateClass.MEASUREMENT,
-        value_fn=lambda data: data["neige_fraiche"].get("altitude_ss"),
+        suggested_display_precision=0,
+        # Snow fallen during the last analysed 24h
+        value_fn=_neige_fraiche_value,
         attrs_fn=_neige_fraiche_attrs,
     ),
     MeteoFranceMontagneSensorEntityDescription(
