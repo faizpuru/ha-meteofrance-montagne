@@ -60,7 +60,7 @@ Intégration Home Assistant pour consulter les **Bulletins d'estimation du Risqu
 4. Entrez votre **token API Météo-France**
 5. Sélectionnez le **département** puis le **massif** à surveiller
 
-Chaque massif apparaît comme un appareil qui regroupe ses 14 entités.
+Chaque massif apparaît comme un appareil qui regroupe ses 15 entités.
 
 ### Ajouter d'autres massifs
 
@@ -82,7 +82,7 @@ Si Météo-France refuse le token, Home Assistant vous demande automatiquement d
 
 ## 🎯 Entités créées
 
-Pour chaque massif configuré, l'intégration crée **8 sensors** et **6 images** :
+Pour chaque massif configuré, l'intégration crée **8 sensors**, **1 binary sensor** et **6 images** :
 
 ### 📊 Sensors
 
@@ -97,6 +97,7 @@ Pour chaque massif configuré, l'intégration crée **8 sensors** et **6 images*
   - `commentaire` : Commentaire général
   - `departs_spontanes` : Risque de départs naturels
   - `declenchements_skieurs` : Risque de déclenchements accidentels
+  - `avis` : Avis officiel, vide ou « fort risque d'avalanche » / « très fort risque d'avalanche »
   - `date_validite` : Fin de validité du bulletin. Le bulletin est rédigé vers 16h et le risque vaut pour le lendemain, jusqu'à 18h.
   - `amendement` : `true` si le bulletin a été corrigé
   - `altitude_limite_m` : Altitude de séparation des zones (si 2 zones d'altitude)
@@ -214,6 +215,13 @@ Pour chaque massif configuré, l'intégration crée **8 sensors** et **6 images*
 - **Attributs** :
   - `texte_complet` : Description complète de la qualité de la neige
   - `last_update`
+
+### 🚨 Binary sensor
+
+#### Avis de risque fort (`binary_sensor.{massif}_avis_de_risque_fort`)
+- **État** : `on` quand Météo-France émet un avis de fort ou de très fort risque d'avalanche, `off` sinon. Sans valeur hors saison.
+- **Attributs** :
+  - `avis` : Texte de l'avis
 
 ### 🖼️ Images
 

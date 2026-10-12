@@ -66,6 +66,7 @@ def _risque_attrs(data: dict) -> dict[str, Any]:
         "commentaire": _clean_text(risque.get("commentaire")),
         "departs_spontanes": _clean_text(risque.get("naturel")),
         "declenchements_skieurs": _clean_text(risque.get("accidentel")),
+        "avis": _clean_text(risque.get("avis")),
         "date_validite": data.get("date_validite"),
         "amendement": data.get("amendement"),
         "last_update": data.get("date"),

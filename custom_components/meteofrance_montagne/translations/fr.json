@@ -81,6 +81,11 @@
         }
     },
     "entity": {
+        "binary_sensor": {
+            "avis_risque_fort": {
+                "name": "Avis de risque fort"
+            }
+        },
         "sensor": {
             "risque_max": {
                 "name": "Risque avalanche",
