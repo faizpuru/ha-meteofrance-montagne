@@ -443,22 +443,33 @@ class MeteoFranceMontagneSensor(MeteoFranceMontagneEntity, SensorEntity):
         self.entity_description = description
 
     @property
+    def _bulletin(self) -> dict | None:
+        """Return the bulletin data, None outside the season."""
+        data = self.coordinator.data
+        if not data or data.get("hors_saison"):
+            return None
+        return data
+
+    @property
     def native_value(self) -> StateType:
         """Return the state of the sensor."""
-        if not self.coordinator.data:
+        if (data := self._bulletin) is None:
             return None
-        return self.entity_description.value_fn(self.coordinator.data)
+        return self.entity_description.value_fn(data)
 
     @property
     def entity_picture(self) -> str | None:
         """Return the entity picture."""
-        if not self.coordinator.data:
+        if (data := self._bulletin) is None:
             return None
-        return self.entity_description.picture_fn(self.coordinator.data)
+        return self.entity_description.picture_fn(data)
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
         """Return the state attributes."""
-        if not self.coordinator.data:
+        data = self.coordinator.data
+        if data and data.get("hors_saison"):
+            return {"hors_saison": True, "message": data["message"]}
+        if (data := self._bulletin) is None:
             return {}
-        return self.entity_description.attrs_fn(self.coordinator.data)
+        return self.entity_description.attrs_fn(data)

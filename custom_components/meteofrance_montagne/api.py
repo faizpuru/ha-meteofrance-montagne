@@ -21,6 +21,10 @@ class MeteoFranceMontagneAuthError(MeteoFranceMontagneApiError):
     """The API token was rejected."""
 
 
+class MeteoFranceMontagneOffSeason(Exception):
+    """No bulletin is published for the massif outside the season."""
+
+
 class MeteoFranceMontagneApi:
 
     def __init__(self, session: aiohttp.ClientSession, hass: HomeAssistant, token: str):
@@ -317,11 +321,14 @@ class MeteoFranceMontagneApi:
         response = await self.call_api(f"{BASE_URL}/massif/BRA?id-massif={massif}&format=xml")
         try:
             xml_doc = ET.fromstring(response)
-            result = self.parse_bulletin_xml(xml_doc)
-            return result
-
         except ET.ParseError as e:
             raise MeteoFranceMontagneApiError(f"XML parsing error: {e}") from e
+
+        # Outside the season the API answers a single <message> instead of a bulletin
+        if xml_doc.tag == "message":
+            raise MeteoFranceMontagneOffSeason((xml_doc.text or "").strip())
+
+        return self.parse_bulletin_xml(xml_doc)
 
     async def image(self, image_type, massif):
         """Get image for a massif."""
@@ -365,6 +372,9 @@ class MeteoFranceMontagneApi:
             async with self.session.get(url, timeout=timeout, headers=headers) as response:
                 if response.status == 401:
                     raise MeteoFranceMontagneAuthError("Invalid API token (401 Unauthorized)")
+                if response.status == 404:
+                    # Documented answer for a dataset unavailable outside the season
+                    raise MeteoFranceMontagneOffSeason(await response.text())
                 if response.status != 200:
                     raise MeteoFranceMontagneApiError(
                         f"HTTP {response.status} error for url: {url}")

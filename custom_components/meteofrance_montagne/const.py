@@ -9,6 +9,7 @@ CONF_TOKEN = "token"
 SUBENTRY_TYPE_MASSIF = "massif"
 DEFAULT_TOKEN = ""
 UPDATE_INTERVAL = 1
+OFF_SEASON_UPDATE_INTERVAL = 6
 RESOURCES_URL = "/api/meteofrance_montagne/resources"
 IMAGE_TYPES = [
     "rose_pentes",
