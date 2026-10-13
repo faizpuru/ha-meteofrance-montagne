@@ -119,6 +119,18 @@
             "meteo": {
                 "name": "Weather"
             },
+            "isotherme_0": {
+                "name": "Freezing level"
+            },
+            "limite_pluie_neige": {
+                "name": "Rain-snow limit"
+            },
+            "vent_bas": {
+                "name": "Low-altitude wind"
+            },
+            "vent_haut": {
+                "name": "High-altitude wind"
+            },
             "stabilite": {
                 "name": "Snowpack stability"
             },

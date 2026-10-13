@@ -13,10 +13,11 @@ from homeassistant.components.sensor import (
     SensorEntityDescription,
     SensorStateClass,
 )
-from homeassistant.const import UnitOfLength
+from homeassistant.const import UnitOfLength, UnitOfSpeed
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from homeassistant.helpers.typing import StateType
+from homeassistant.util import dt as dt_util
 
 from . import MeteoFranceMontagneConfigEntry
 from .const import (
@@ -27,7 +28,7 @@ from .const import (
     RESOURCES_URL,
     WEATHER_CONDITIONS,
 )
-from .coordinator import MeteoFranceMontagneDataUpdateCoordinator
+from .coordinator import MeteoFranceMontagneDataUpdateCoordinator, parse_bulletin_time
 from .entity import MeteoFranceMontagneEntity
 
 _LOGGER = logging.getLogger(__name__)
@@ -250,6 +251,49 @@ def _clean_echeance(echeance: dict) -> dict:
     return cleaned
 
 
+def _prochaine_echeance(data: dict) -> dict:
+    """Return the first forecast step still to come, empty once all are past."""
+    now = dt_util.utcnow()
+    for echeance in data["meteo"].get("echeances", []):
+        try:
+            if parse_bulletin_time(echeance["date"]) >= now:
+                return echeance
+        except (KeyError, TypeError, ValueError):
+            continue
+    return {}
+
+
+def _echeance_value(value: Any) -> Any:
+    """Return a forecast value, None for the -1 "not applicable" marker."""
+    return None if value == -1 else value
+
+
+def _echeance_attrs(data: dict) -> dict[str, Any]:
+    return {"date_echeance": _prochaine_echeance(data).get("date")}
+
+
+def _vent(index: int) -> tuple[Callable[[dict], StateType], Callable[[dict], dict[str, Any]]]:
+    """Return the value and attributes builders of the low (1) or high (2) wind."""
+
+    def value_fn(data: dict) -> StateType:
+        vent = _prochaine_echeance(data).get("vent") or {}
+        return _echeance_value(vent.get(f"force_{index}"))
+
+    def attrs_fn(data: dict) -> dict[str, Any]:
+        echeance = _prochaine_echeance(data)
+        return {
+            "direction": (echeance.get("vent") or {}).get(f"direction_{index}"),
+            "altitude_m": data["meteo"].get(f"altitude_vent_{index}"),
+            "date_echeance": echeance.get("date"),
+        }
+
+    return value_fn, attrs_fn
+
+
+VENT_BAS = _vent(1)
+VENT_HAUT = _vent(2)
+
+
 def _meteo_attrs(data: dict) -> dict[str, Any]:
     meteo = data["meteo"]
     return {
@@ -370,6 +414,46 @@ SENSOR_TYPES: tuple[MeteoFranceMontagneSensorEntityDescription, ...] = (
         icon="mdi:weather-windy",
         value_fn=lambda data: _clean_text(data["meteo"].get("commentaire")),
         attrs_fn=_meteo_attrs,
+    ),
+    # Next forecast step of the bulletin
+    MeteoFranceMontagneSensorEntityDescription(
+        key="isotherme_0",
+        translation_key="isotherme_0",
+        icon="mdi:snowflake-thermometer",
+        device_class=SensorDeviceClass.DISTANCE,
+        native_unit_of_measurement=UnitOfLength.METERS,
+        state_class=SensorStateClass.MEASUREMENT,
+        value_fn=lambda data: _echeance_value(_prochaine_echeance(data).get("iso_0")),
+        attrs_fn=_echeance_attrs,
+    ),
+    MeteoFranceMontagneSensorEntityDescription(
+        key="limite_pluie_neige",
+        translation_key="limite_pluie_neige",
+        icon="mdi:weather-snowy-rainy",
+        device_class=SensorDeviceClass.DISTANCE,
+        native_unit_of_measurement=UnitOfLength.METERS,
+        state_class=SensorStateClass.MEASUREMENT,
+        # -1 when the weather is dry
+        value_fn=lambda data: _echeance_value(_prochaine_echeance(data).get("pluie_neige")),
+        attrs_fn=_echeance_attrs,
+    ),
+    MeteoFranceMontagneSensorEntityDescription(
+        key="vent_bas",
+        translation_key="vent_bas",
+        device_class=SensorDeviceClass.WIND_SPEED,
+        native_unit_of_measurement=UnitOfSpeed.KILOMETERS_PER_HOUR,
+        state_class=SensorStateClass.MEASUREMENT,
+        value_fn=VENT_BAS[0],
+        attrs_fn=VENT_BAS[1],
+    ),
+    MeteoFranceMontagneSensorEntityDescription(
+        key="vent_haut",
+        translation_key="vent_haut",
+        device_class=SensorDeviceClass.WIND_SPEED,
+        native_unit_of_measurement=UnitOfSpeed.KILOMETERS_PER_HOUR,
+        state_class=SensorStateClass.MEASUREMENT,
+        value_fn=VENT_HAUT[0],
+        attrs_fn=VENT_HAUT[1],
     ),
     MeteoFranceMontagneSensorEntityDescription(
         key="stabilite",

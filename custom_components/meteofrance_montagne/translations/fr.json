@@ -119,6 +119,18 @@
             "meteo": {
                 "name": "Météo"
             },
+            "isotherme_0": {
+                "name": "Isotherme 0"
+            },
+            "limite_pluie_neige": {
+                "name": "Limite pluie-neige"
+            },
+            "vent_bas": {
+                "name": "Vent bas"
+            },
+            "vent_haut": {
+                "name": "Vent haut"
+            },
             "stabilite": {
                 "name": "Stabilité du manteau neigeux"
             },
