@@ -115,6 +115,8 @@ class MeteoFranceMontagneApi:
             'naturel': get_text(cartouche.find('NATUREL')) if cartouche is not None else '',
             'accidentel': get_text(cartouche.find('ACCIDENTEL')) if cartouche is not None else '',
             'resume': get_text(cartouche.find('RESUME')) if cartouche is not None else '',
+            # Empty, "fort risque d'avalanche" or "très fort risque d'avalanche"
+            'avis': get_text(cartouche.find('AVIS')) if cartouche is not None else '',
             'estimation_j2': {
                 'date': get_attr(risque_elem, 'DATE_RISQUE_J2') if risque_elem is not None else '',
                 'risque_max': get_attr(risque_elem, 'RISQUEMAXIJ2') if risque_elem is not None else '',
