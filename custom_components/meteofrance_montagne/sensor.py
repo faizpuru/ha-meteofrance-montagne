@@ -5,6 +5,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import date, datetime
 import logging
+import re
 from typing import Any
 
 from homeassistant.components.sensor import (
@@ -13,7 +14,7 @@ from homeassistant.components.sensor import (
     SensorEntityDescription,
     SensorStateClass,
 )
-from homeassistant.const import UnitOfLength, UnitOfSpeed
+from homeassistant.const import MAX_LENGTH_STATE_STATE, UnitOfLength, UnitOfSpeed
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from homeassistant.helpers.typing import StateType
@@ -37,6 +38,18 @@ _LOGGER = logging.getLogger(__name__)
 def _clean_text(value: str | None) -> str:
     """Flatten a multiline text from the bulletin."""
     return (value or "").replace("\n", " ").strip()
+
+
+def _first_sentence(value: str | None, attribute: str) -> str | None:
+    """Return the first sentence of a text, short enough for a state."""
+    if not (text := _clean_text(value)):
+        return None
+    text = re.split(r"(?<=[.!?])\s+", text, maxsplit=1)[0]
+    if len(text) <= MAX_LENGTH_STATE_STATE:
+        return text
+    # Point to the attribute holding the whole text
+    suffix = f"… (suite dans l'attribut {attribute})"
+    return text[:MAX_LENGTH_STATE_STATE - len(suffix)].rstrip() + suffix
 
 
 def _risk_level(value: Any) -> str | None:
@@ -294,9 +307,17 @@ VENT_BAS = _vent(1)
 VENT_HAUT = _vent(2)
 
 
+def _temps_sensible(data: dict) -> StateType:
+    """Return the weather condition of the next forecast step."""
+    if (code := _prochaine_echeance(data).get("temps_sensible")) is None:
+        return None
+    return WEATHER_CONDITIONS.get(code, code)
+
+
 def _meteo_attrs(data: dict) -> dict[str, Any]:
     meteo = data["meteo"]
     return {
+        "date_echeance": _prochaine_echeance(data).get("date"),
         "altitude_vent_1_m": meteo.get("altitude_vent_1"),
         "altitude_vent_2_m": meteo.get("altitude_vent_2"),
         "commentaire": meteo.get("commentaire", ""),
@@ -412,7 +433,8 @@ SENSOR_TYPES: tuple[MeteoFranceMontagneSensorEntityDescription, ...] = (
         key="meteo",
         translation_key="meteo",
         icon="mdi:weather-windy",
-        value_fn=lambda data: _clean_text(data["meteo"].get("commentaire")),
+        # Weather condition of the next forecast step
+        value_fn=_temps_sensible,
         attrs_fn=_meteo_attrs,
     ),
     # Next forecast step of the bulletin
@@ -467,8 +489,7 @@ SENSOR_TYPES: tuple[MeteoFranceMontagneSensorEntityDescription, ...] = (
         key="qualite_neige",
         translation_key="qualite_neige",
         icon="mdi:snowflake-variant",
-        # Return first 100 chars as state
-        value_fn=lambda data: data["qualite"][:100] if data["qualite"] else None,
+        value_fn=lambda data: _first_sentence(data["qualite"], "texte_complet"),
         attrs_fn=lambda data: {
             "texte_complet": data["qualite"],
             "last_update": data.get("date"),

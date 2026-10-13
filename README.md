@@ -188,8 +188,9 @@ Pour chaque massif configuré, l'intégration crée **12 sensors**, **1 binary s
   - `last_update`
 
 #### 6. Météo (`sensor.{massif}_meteo`)
-- **État** : Commentaire météo général
+- **État** : Temps sensible de la prochaine échéance (ex. « Neige faible »), sans valeur une fois les 4 échéances passées
 - **Attributs** :
+  - `date_echeance` : Échéance utilisée pour l'état
   - `altitude_vent_1_m`, `altitude_vent_2_m` : Altitudes de référence pour le vent
   - `commentaire` : Commentaire météo
   - `echeances` : Les 4 prévisions du lendemain, toutes les 6 h (vent, isotherme 0°C, limite pluie-neige, temps sensible)
@@ -222,7 +223,7 @@ Ces 4 capteurs donnent la valeur de la prochaine échéance à venir parmi les 4
   - `last_update`
 
 #### 8. Qualité de la Neige (`sensor.{massif}_qualite_de_la_neige`)
-- **État** : Extrait du texte (100 premiers caractères)Me
+- **État** : Première phrase du texte, raccourcie à 255 caractères si besoin
 - **Attributs** :
   - `texte_complet` : Description complète de la qualité de la neige
   - `last_update`
