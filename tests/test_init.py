@@ -1,8 +1,14 @@
 """Tests for the Météo-France Montagne setup and migration."""
 from datetime import timedelta
+from types import MappingProxyType
 
 import pytest
-from homeassistant.config_entries import SOURCE_REAUTH, ConfigEntryState
+from homeassistant.config_entries import (
+    SOURCE_REAUTH,
+    ConfigEntryState,
+    ConfigSubentry,
+)
+from homeassistant.const import STATE_UNAVAILABLE
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry as er
 from homeassistant.util import dt as dt_util
@@ -60,6 +66,44 @@ async def test_setup_retry(hass: HomeAssistant, config_entry, mock_call_api):
 
     await setup_entry(hass, config_entry)
     assert config_entry.state is ConfigEntryState.SETUP_RETRY
+
+
+async def test_setup_one_massif_failing(
+    hass: HomeAssistant, config_entry, mock_call_api
+):
+    """Load the other massifs when one fails, and recover it later."""
+    config_entry.add_to_hass(hass)
+    hass.config_entries.async_add_subentry(
+        config_entry,
+        ConfigSubentry(
+            data=MappingProxyType({CONF_MASSIF: 16, CONF_MASSIF_NAME: "Champsaur"}),
+            subentry_type=SUBENTRY_TYPE_MASSIF,
+            title="Hautes-Alpes - Champsaur",
+            unique_id="16",
+        ),
+    )
+    side_effect = mock_call_api.side_effect
+
+    async def champsaur_down(url):
+        if "id-massif=16" in url:
+            raise MeteoFranceMontagneApiError("500")
+        return await side_effect(url)
+
+    mock_call_api.side_effect = champsaur_down
+    await hass.config_entries.async_setup(config_entry.entry_id)
+    await hass.async_block_till_done()
+    assert config_entry.state is ConfigEntryState.LOADED
+
+    registry = er.async_get(hass)
+    orlu = registry.async_get_entity_id("sensor", DOMAIN, f"{MASSIF_ID}_risque_max")
+    champsaur = registry.async_get_entity_id("sensor", DOMAIN, "16_risque_max")
+    assert hass.states.get(orlu).state == "3"
+    assert hass.states.get(champsaur).state == STATE_UNAVAILABLE
+
+    mock_call_api.side_effect = side_effect
+    async_fire_time_changed(hass, dt_util.utcnow() + timedelta(hours=UPDATE_INTERVAL))
+    await hass.async_block_till_done(wait_background_tasks=True)
+    assert hass.states.get(champsaur).state == "3"
 
 
 async def test_setup_auth_failed(hass: HomeAssistant, config_entry, mock_call_api):

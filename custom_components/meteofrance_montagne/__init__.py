@@ -1,4 +1,5 @@
 """The Météo-France Montagne integration."""
+import asyncio
 import logging
 
 from pathlib import Path
@@ -8,6 +9,7 @@ from homeassistant.components.http import StaticPathConfig
 from homeassistant.config_entries import ConfigEntry, ConfigSubentry
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 import homeassistant.helpers.config_validation as cv
@@ -67,8 +69,31 @@ async def async_setup_entry(
             subentry.data[CONF_MASSIF_NAME],
             entry.data[CONF_TOKEN],
         )
-        await coordinator.async_config_entry_first_refresh()
         coordinators[subentry.subentry_id] = coordinator
+
+    results = await asyncio.gather(
+        *(
+            coordinator.async_config_entry_first_refresh()
+            for coordinator in coordinators.values()
+        ),
+        return_exceptions=True,
+    )
+    errors = {
+        coordinator.massif_name: result
+        for coordinator, result in zip(coordinators.values(), results)
+        if isinstance(result, Exception)
+    }
+    for error in errors.values():
+        # The key is shared by all the massifs, and bugs must not be hidden
+        if not isinstance(error, ConfigEntryNotReady):
+            raise error
+    if coordinators and len(errors) == len(coordinators):
+        raise next(iter(errors.values()))
+
+    # A failing massif does not block the others: its entities stay
+    # unavailable until one of its next hourly refreshes succeeds
+    for massif_name, error in errors.items():
+        _LOGGER.warning("Massif %s is not available yet: %s", massif_name, error)
 
     entry.runtime_data = coordinators
 
