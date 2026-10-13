@@ -39,12 +39,14 @@ def _clean_text(value: str | None) -> str:
     return (value or "").replace("\n", " ").strip()
 
 
-def _state_text(value: str | None) -> str:
+def _state_text(value: str | None, attribute: str) -> str:
     """Flatten a text and shorten it to the longest state Home Assistant accepts."""
     text = _clean_text(value)
     if len(text) <= MAX_LENGTH_STATE_STATE:
         return text
-    return text[:MAX_LENGTH_STATE_STATE - 1].rstrip() + "…"
+    # Point to the attribute holding the whole text
+    suffix = f"… (suite dans l'attribut {attribute})"
+    return text[:MAX_LENGTH_STATE_STATE - len(suffix)].rstrip() + suffix
 
 
 def _risk_level(value: Any) -> str | None:
@@ -420,8 +422,9 @@ SENSOR_TYPES: tuple[MeteoFranceMontagneSensorEntityDescription, ...] = (
         key="meteo",
         translation_key="meteo",
         icon="mdi:weather-windy",
-        # The full comment stays in the commentaire attribute
-        value_fn=lambda data: _state_text(data["meteo"].get("commentaire")),
+        value_fn=lambda data: _state_text(
+            data["meteo"].get("commentaire"), "commentaire"
+        ),
         attrs_fn=_meteo_attrs,
     ),
     # Next forecast step of the bulletin

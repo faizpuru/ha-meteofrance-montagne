@@ -137,9 +137,10 @@ async def test_meteo_long_comment(hass: HomeAssistant, config_entry):
     await setup_entry(hass, config_entry)
 
     state = get_state(hass, "sensor", "meteo")
-    assert len(state.state) == 255
-    assert state.state.endswith("…")
-    assert LONG_COMMENT.strip().startswith(state.state[:-1])
+    suffix = "… (suite dans l'attribut commentaire)"
+    assert len(state.state) <= 255
+    assert state.state.endswith(suffix)
+    assert LONG_COMMENT.startswith(state.state.removesuffix(suffix))
     assert state.attributes["commentaire"] == LONG_COMMENT.strip()
 
 
