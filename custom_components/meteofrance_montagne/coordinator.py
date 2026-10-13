@@ -21,6 +21,14 @@ from .const import DOMAIN, IMAGE_TYPES, OFF_SEASON_UPDATE_INTERVAL, UPDATE_INTER
 _LOGGER = logging.getLogger(__name__)
 
 
+def parse_bulletin_time(value: str) -> datetime:
+    """Parse a bulletin time, a French local time unless it carries an offset."""
+    parsed = datetime.fromisoformat(value)
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=dt_util.get_time_zone("Europe/Paris"))
+    return dt_util.as_utc(parsed)
+
+
 class MeteoFranceMontagneDataUpdateCoordinator(DataUpdateCoordinator):
     """Class to coordinate data updates."""
 
@@ -88,12 +96,7 @@ class MeteoFranceMontagneDataUpdateCoordinator(DataUpdateCoordinator):
         """Fetch the bulletin, and the images when the bulletin has changed."""
         bulletin = await self.api.bulletin(self.massif_id)
         bulletin_date = bulletin["dateBulletin"]
-        bulletin_datetime = datetime.fromisoformat(bulletin_date)
-        if bulletin_datetime.tzinfo is None:
-            # Bulletin times are French local times (written "around 4 pm")
-            bulletin_datetime = bulletin_datetime.replace(
-                tzinfo=dt_util.get_time_zone("Europe/Paris"))
-        bulletin_datetime = dt_util.as_utc(bulletin_datetime)
+        bulletin_datetime = parse_bulletin_time(bulletin_date)
 
         # Check if bulletin date has changed since last update
         if self.data and bulletin_datetime == self.updated_at:

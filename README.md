@@ -60,7 +60,7 @@ Intégration Home Assistant pour consulter les **Bulletins d'estimation du Risqu
 4. Entrez votre **token API Météo-France**
 5. Sélectionnez le **département** puis le **massif** à surveiller
 
-Chaque massif apparaît comme un appareil qui regroupe ses 15 entités.
+Chaque massif apparaît comme un appareil qui regroupe ses 19 entités.
 
 ### Ajouter d'autres massifs
 
@@ -82,7 +82,7 @@ Si Météo-France refuse le token, Home Assistant vous demande automatiquement d
 
 ## 🎯 Entités créées
 
-Pour chaque massif configuré, l'intégration crée **8 sensors**, **1 binary sensor** et **6 images** :
+Pour chaque massif configuré, l'intégration crée **12 sensors**, **1 binary sensor** et **6 images** :
 
 ### 📊 Sensors
 
@@ -192,8 +192,19 @@ Pour chaque massif configuré, l'intégration crée **8 sensors**, **1 binary se
 - **Attributs** :
   - `altitude_vent_1_m`, `altitude_vent_2_m` : Altitudes de référence pour le vent
   - `commentaire` : Commentaire météo
-  - `echeances` : Liste des prévisions horaires avec températures, vent, isotherme 0°C, temps sensible
+  - `echeances` : Les 4 prévisions du lendemain, toutes les 6 h (vent, isotherme 0°C, limite pluie-neige, temps sensible)
   - `last_update`
+
+#### Prévisions de la prochaine échéance
+
+Ces 4 capteurs donnent la valeur de la prochaine échéance à venir parmi les 4 prévisions du bulletin (06h, 12h, 18h et minuit du lendemain). Leur attribut `date_echeance` indique l'échéance utilisée.
+
+| Capteur | Identifiant (installation en français) | Unité | Attributs |
+|---|---|---|---|
+| Isotherme 0 | `sensor.{massif}_isotherme_0` | m | `date_echeance` |
+| Limite pluie-neige | `sensor.{massif}_limite_pluie_neige` | m, sans valeur par temps sec | `date_echeance` |
+| Vent bas | `sensor.{massif}_vent_bas` | km/h | `direction`, `altitude_m`, `date_echeance` |
+| Vent haut | `sensor.{massif}_vent_haut` | km/h | `direction`, `altitude_m`, `date_echeance` |
 
 #### 7. Stabilité du Manteau Neigeux (`sensor.{massif}_stabilite_du_manteau_neigeux`)
 - **État** : Situation avalancheuse typique principale (SAT)
