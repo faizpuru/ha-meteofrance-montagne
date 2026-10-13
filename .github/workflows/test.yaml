@@ -29,8 +29,4 @@ jobs:
           pip install -r requirements-test.txt
 
       - name: Run tests
-        run: |
-          python tests/test_api.py
-
-      - name: Tests passed
-        run: echo "✅ All tests passed successfully!"
+        run: pytest
