@@ -103,45 +103,52 @@ async def test_snow(hass: HomeAssistant, config_entry):
     ]
 
     state = get_state(hass, "sensor", "qualite_neige")
-    assert len(state.state) == 100
+    assert state.state == (
+        "Le jour se lève samedi avec un beau manteau neigeux tout neuf dès les "
+        "fonds de vallée prenant rapidement de l'épaisseur avec l'altitude."
+    )
     assert state.attributes["texte_complet"].startswith(state.state)
 
 
-async def test_meteo(hass: HomeAssistant, config_entry):
-    """Expose the weather comment and the cleaned forecast steps."""
-    await setup_entry(hass, config_entry)
-
-    state = get_state(hass, "sensor", "meteo")
-    assert state.state == "Températures très froides le matin malgré le soleil !"
-    first, *_, last = state.attributes["echeances"]
-    assert first["temps_sensible_texte"] == "Neige faible"
-    assert first["mer_nuages"] is None
-    assert last["pluie_neige"] is None
-
-
-LONG_COMMENT = "Vent de nord-ouest fort en altitude, " * 10
+LONG_SENTENCE = "Neige sèche et froide sur les pentes nord, " * 10
 
 
 @pytest.mark.parametrize(
     "bulletin_xml",
     [
         load_resource("sample_bulletin.xml").replace(
-            "Températures très froides le matin malgré le soleil !".encode(),
-            LONG_COMMENT.encode(),
+            "Le jour se lève samedi".encode(), LONG_SENTENCE.encode()
         )
     ],
-    ids=["long_comment"],
+    ids=["long_sentence"],
 )
-async def test_meteo_long_comment(hass: HomeAssistant, config_entry):
-    """Shorten a comment too long for a state, keep it whole in the attribute."""
+async def test_qualite_long_sentence(hass: HomeAssistant, config_entry):
+    """Shorten a first sentence too long for a state, keep it whole in the attribute."""
+    await setup_entry(hass, config_entry)
+
+    state = get_state(hass, "sensor", "qualite_neige")
+    suffix = "… (suite dans l'attribut texte_complet)"
+    assert len(state.state) <= 255
+    assert state.state.endswith(suffix)
+    assert LONG_SENTENCE.startswith(state.state.removesuffix(suffix))
+    assert state.attributes["texte_complet"].startswith(LONG_SENTENCE)
+
+
+async def test_meteo(hass: HomeAssistant, config_entry, freezer):
+    """Give the weather of the next forecast step, keep the comment and all the steps."""
+    freezer.move_to(BULLETIN_EVENING)
     await setup_entry(hass, config_entry)
 
     state = get_state(hass, "sensor", "meteo")
-    suffix = "… (suite dans l'attribut commentaire)"
-    assert len(state.state) <= 255
-    assert state.state.endswith(suffix)
-    assert LONG_COMMENT.startswith(state.state.removesuffix(suffix))
-    assert state.attributes["commentaire"] == LONG_COMMENT.strip()
+    assert state.state == "Neige faible"
+    assert state.attributes["date_echeance"] == "2025-11-22T06:00:00"
+    assert state.attributes["commentaire"] == (
+        "Températures très froides le matin malgré le soleil !"
+    )
+    first, *_, last = state.attributes["echeances"]
+    assert first["temps_sensible_texte"] == "Neige faible"
+    assert first["mer_nuages"] is None
+    assert last["pluie_neige"] is None
 
 
 @pytest.mark.parametrize(
@@ -154,6 +161,7 @@ async def test_meteo_long_comment(hass: HomeAssistant, config_entry):
                 "limite_pluie_neige": "300",
                 "vent_bas": "45",
                 "vent_haut": "85",
+                "meteo": "Neige faible",
                 "date_echeance": "2025-11-22T06:00:00",
             },
         ),
@@ -165,6 +173,7 @@ async def test_meteo_long_comment(hass: HomeAssistant, config_entry):
                 "limite_pluie_neige": STATE_UNKNOWN,
                 "vent_bas": "35",
                 "vent_haut": "55",
+                "meteo": "Clair",
                 "date_echeance": "2025-11-22T18:00:00",
             },
         ),
@@ -176,6 +185,7 @@ async def test_meteo_long_comment(hass: HomeAssistant, config_entry):
                 "limite_pluie_neige": STATE_UNKNOWN,
                 "vent_bas": STATE_UNKNOWN,
                 "vent_haut": STATE_UNKNOWN,
+                "meteo": STATE_UNKNOWN,
                 "date_echeance": None,
             },
         ),
@@ -188,7 +198,7 @@ async def test_prochaine_echeance(
     freezer.move_to(now)
     await setup_entry(hass, config_entry)
 
-    for key in ("isotherme_0", "limite_pluie_neige", "vent_bas", "vent_haut"):
+    for key in ("meteo", "isotherme_0", "limite_pluie_neige", "vent_bas", "vent_haut"):
         state = get_state(hass, "sensor", key)
         assert state.state == expected[key], key
         assert state.attributes["date_echeance"] == expected["date_echeance"]
