@@ -13,7 +13,7 @@ from homeassistant.components.sensor import (
     SensorEntityDescription,
     SensorStateClass,
 )
-from homeassistant.const import UnitOfLength, UnitOfSpeed
+from homeassistant.const import MAX_LENGTH_STATE_STATE, UnitOfLength, UnitOfSpeed
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from homeassistant.helpers.typing import StateType
@@ -37,6 +37,14 @@ _LOGGER = logging.getLogger(__name__)
 def _clean_text(value: str | None) -> str:
     """Flatten a multiline text from the bulletin."""
     return (value or "").replace("\n", " ").strip()
+
+
+def _state_text(value: str | None) -> str:
+    """Flatten a text and shorten it to the longest state Home Assistant accepts."""
+    text = _clean_text(value)
+    if len(text) <= MAX_LENGTH_STATE_STATE:
+        return text
+    return text[:MAX_LENGTH_STATE_STATE - 1].rstrip() + "…"
 
 
 def _risk_level(value: Any) -> str | None:
@@ -412,7 +420,8 @@ SENSOR_TYPES: tuple[MeteoFranceMontagneSensorEntityDescription, ...] = (
         key="meteo",
         translation_key="meteo",
         icon="mdi:weather-windy",
-        value_fn=lambda data: _clean_text(data["meteo"].get("commentaire")),
+        # The full comment stays in the commentaire attribute
+        value_fn=lambda data: _state_text(data["meteo"].get("commentaire")),
         attrs_fn=_meteo_attrs,
     ),
     # Next forecast step of the bulletin

@@ -64,6 +64,7 @@ async def test_risque(hass: HomeAssistant, config_entry):
         .replace(b'LOC1="" ALTITUDE="" RISQUE2=""', b'LOC1="E" ALTITUDE="" RISQUE2="2"')
         .replace(b'LOC2=""', b'LOC2="O"')
     ],
+    ids=["east_west"],
 )
 async def test_risque_zones_by_orientation(hass: HomeAssistant, config_entry):
     """List both zones of a massif split east/west."""
@@ -116,6 +117,30 @@ async def test_meteo(hass: HomeAssistant, config_entry):
     assert first["temps_sensible_texte"] == "Neige faible"
     assert first["mer_nuages"] is None
     assert last["pluie_neige"] is None
+
+
+LONG_COMMENT = "Vent de nord-ouest fort en altitude, " * 10
+
+
+@pytest.mark.parametrize(
+    "bulletin_xml",
+    [
+        load_resource("sample_bulletin.xml").replace(
+            "Températures très froides le matin malgré le soleil !".encode(),
+            LONG_COMMENT.encode(),
+        )
+    ],
+    ids=["long_comment"],
+)
+async def test_meteo_long_comment(hass: HomeAssistant, config_entry):
+    """Shorten a comment too long for a state, keep it whole in the attribute."""
+    await setup_entry(hass, config_entry)
+
+    state = get_state(hass, "sensor", "meteo")
+    assert len(state.state) == 255
+    assert state.state.endswith("…")
+    assert LONG_COMMENT.strip().startswith(state.state[:-1])
+    assert state.attributes["commentaire"] == LONG_COMMENT.strip()
 
 
 @pytest.mark.parametrize(
@@ -188,6 +213,7 @@ async def test_avis_off(hass: HomeAssistant, config_entry):
             b"<AVIS/>", b"<AVIS>fort risque d'avalanche</AVIS>"
         )
     ],
+    ids=["avis"],
 )
 async def test_avis_on(hass: HomeAssistant, config_entry):
     """Turn on with a high risk warning."""
