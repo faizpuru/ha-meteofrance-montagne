@@ -76,16 +76,16 @@ async def test_setup_one_massif_failing(
     hass.config_entries.async_add_subentry(
         config_entry,
         ConfigSubentry(
-            data=MappingProxyType({CONF_MASSIF: 16, CONF_MASSIF_NAME: "Champsaur"}),
+            data=MappingProxyType({CONF_MASSIF: 19, CONF_MASSIF_NAME: "Champsaur"}),
             subentry_type=SUBENTRY_TYPE_MASSIF,
             title="Hautes-Alpes - Champsaur",
-            unique_id="16",
+            unique_id="19",
         ),
     )
     side_effect = mock_call_api.side_effect
 
     async def champsaur_down(url):
-        if "id-massif=16" in url:
+        if "id-massif=19" in url:
             raise MeteoFranceMontagneApiError("500")
         return await side_effect(url)
 
@@ -96,7 +96,7 @@ async def test_setup_one_massif_failing(
 
     registry = er.async_get(hass)
     orlu = registry.async_get_entity_id("sensor", DOMAIN, f"{MASSIF_ID}_risque_max")
-    champsaur = registry.async_get_entity_id("sensor", DOMAIN, "16_risque_max")
+    champsaur = registry.async_get_entity_id("sensor", DOMAIN, "19_risque_max")
     assert hass.states.get(orlu).state == "3"
     assert hass.states.get(champsaur).state == STATE_UNAVAILABLE
 
@@ -165,6 +165,41 @@ async def test_images_fetched_once_per_bulletin(
     assert mock_call_api.await_count == 8
 
 
+@pytest.mark.parametrize(
+    ("diffusion", "await_count"),
+    [("2025-11-21T16:25:00", 8), ("2025-11-21T19:40:00", 14)],
+    ids=["same_diffusion", "amended"],
+)
+async def test_bulletin_corrected(
+    hass: HomeAssistant, config_entry, mock_call_api, diffusion, await_count
+):
+    """Show a corrected bulletin of the same date, with new images once diffused again."""
+    await setup_entry(hass, config_entry)
+    side_effect = mock_call_api.side_effect
+
+    async def corrected(url):
+        if "/massif/BRA" in url:
+            return (
+                load_resource("sample_bulletin.xml")
+                .replace(b'RISQUEMAXI="3"', b'RISQUEMAXI="4"')
+                .replace(
+                    b'DATEDIFFUSION="2025-11-21T16:25:00"',
+                    f'DATEDIFFUSION="{diffusion}"'.encode(),
+                )
+            )
+        return await side_effect(url)
+
+    mock_call_api.side_effect = corrected
+    async_fire_time_changed(hass, dt_util.utcnow() + timedelta(hours=UPDATE_INTERVAL))
+    await hass.async_block_till_done(wait_background_tasks=True)
+
+    entity_id = er.async_get(hass).async_get_entity_id(
+        "sensor", DOMAIN, f"{MASSIF_ID}_risque_max"
+    )
+    assert hass.states.get(entity_id).state == "4"
+    assert mock_call_api.await_count == await_count
+
+
 async def test_migration_from_v2(hass: HomeAssistant):
     """Turn the version 2 massif entries into subentries, keeping their entities."""
     parent = MockConfigEntry(
@@ -173,7 +208,7 @@ async def test_migration_from_v2(hass: HomeAssistant):
     parent.add_to_hass(hass)
     child = MockConfigEntry(
         domain=DOMAIN,
-        title=f"Ariège - {MASSIF_NAME}",
+        title=f"Ariege - {MASSIF_NAME}",
         data={
             "parent_entry_id": parent.entry_id,
             CONF_MASSIF: MASSIF_ID,
@@ -207,7 +242,7 @@ async def test_migration_from_v2(hass: HomeAssistant):
     (subentry,) = parent.subentries.values()
     assert subentry.subentry_type == SUBENTRY_TYPE_MASSIF
     assert subentry.unique_id == str(MASSIF_ID)
-    assert subentry.title == f"Ariège - {MASSIF_NAME}"
+    assert subentry.title == f"Ariege - {MASSIF_NAME}"
 
     migrated = registry.async_get(risque.entity_id)
     assert migrated.entity_id == "sensor.orlu_st_barthelemy_risque_max"

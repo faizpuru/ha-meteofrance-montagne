@@ -1,4 +1,5 @@
 """Tests for the Météo-France Montagne API client and XML parser."""
+import re
 import xml.etree.ElementTree as ET
 
 import pytest
@@ -88,8 +89,20 @@ def test_parse_stabilite_qualite(bulletin):
     stabilite = bulletin["stabilite"]
     assert stabilite["situations_avalancheuses"] == [{"type": "1"}, {"type": "2"}]
     assert stabilite["titre"] == "Manteau neigeux récent encore instable"
-    assert "Déclenchements provoqués" in stabilite["texte"]
+    assert stabilite["texte"].startswith("Déclenchements provoqués")
     assert "Le jour se lève samedi" in bulletin["qualite"]
+
+
+def test_parse_stabilite_without_texte_sans_titre():
+    """Fall back on the text with the title when the text alone is missing."""
+    xml = re.sub(
+        rb"<TEXTESANSTITRE>.*?</TEXTESANSTITRE>",
+        b"",
+        load_resource("sample_bulletin.xml"),
+        flags=re.DOTALL,
+    )
+    texte = parse(xml)["stabilite"]["texte"]
+    assert texte.startswith("Manteau neigeux récent encore instable")
 
 
 def test_parse_enneigement(bulletin):
@@ -201,16 +214,28 @@ async def test_call_api_errors(hass: HomeAssistant, aioclient_mock, status, erro
         await api.call_api(BULLETIN_URL)
 
 
+async def test_image_not_published(hass: HomeAssistant, aioclient_mock):
+    """Return no image when the API has none for the massif."""
+    aioclient_mock.get(
+        f"{BASE_URL}/massif/image/sept-derniers-jours?id-massif=40",
+        status=404,
+        json={"detail": "no matching blob"},
+    )
+    api = MeteoFranceMontagneApi(async_get_clientsession(hass), hass, TOKEN)
+
+    assert await api.sept_derniers_jours(40) is None
+
+
 async def test_call_api_sends_key(hass: HomeAssistant, aioclient_mock):
     """Send the API key and organize the massifs by department."""
     aioclient_mock.get(f"{BASE_URL}/liste-massifs", json=MASSIFS)
     api = MeteoFranceMontagneApi(async_get_clientsession(hass), hass, TOKEN)
 
     assert await api.list_massif() == {
-        "Ariège": [
+        "Ariege": [
             {"title": "Orlu St-Barthelemy", "code": 72},
-            {"title": "Haute-Ariège", "code": 71},
+            {"title": "Haute-Ariege", "code": 70},
         ],
-        "Hautes-Alpes": [{"title": "Champsaur", "code": 16}],
+        "Hautes-Alpes": [{"title": "Champsaur", "code": 19}],
     }
     assert aioclient_mock.mock_calls[0][3]["apikey"] == TOKEN

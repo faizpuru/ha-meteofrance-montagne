@@ -48,7 +48,7 @@ async def test_user_flow(hass: HomeAssistant):
     assert result["step_id"] == "department"
 
     result = await hass.config_entries.flow.async_configure(
-        result["flow_id"], {"department": "Ariège"}
+        result["flow_id"], {"department": "Ariege"}
     )
     assert result["step_id"] == "massif"
 
@@ -62,7 +62,7 @@ async def test_user_flow(hass: HomeAssistant):
     entry = result["result"]
     (subentry,) = entry.subentries.values()
     assert subentry.subentry_type == SUBENTRY_TYPE_MASSIF
-    assert subentry.title == f"Ariège - {MASSIF_NAME}"
+    assert subentry.title == f"Ariege - {MASSIF_NAME}"
     assert subentry.unique_id == str(MASSIF_ID)
     assert dict(subentry.data) == {CONF_MASSIF: MASSIF_ID, CONF_MASSIF_NAME: MASSIF_NAME}
 
@@ -125,10 +125,10 @@ async def test_add_massif(hass: HomeAssistant, config_entry):
     assert result["type"] is FlowResultType.CREATE_ENTRY
 
     subentry = next(
-        sub for sub in config_entry.subentries.values() if sub.unique_id == "16"
+        sub for sub in config_entry.subentries.values() if sub.unique_id == "19"
     )
     assert subentry.title == "Hautes-Alpes - Champsaur"
-    assert dict(subentry.data) == {CONF_MASSIF: 16, CONF_MASSIF_NAME: "Champsaur"}
+    assert dict(subentry.data) == {CONF_MASSIF: 19, CONF_MASSIF_NAME: "Champsaur"}
 
 
 async def test_add_massif_already_configured(hass: HomeAssistant, config_entry):
@@ -139,7 +139,7 @@ async def test_add_massif_already_configured(hass: HomeAssistant, config_entry):
         (config_entry.entry_id, SUBENTRY_TYPE_MASSIF), context={"source": SOURCE_USER}
     )
     result = await hass.config_entries.subentries.async_configure(
-        result["flow_id"], {"department": "Ariège"}
+        result["flow_id"], {"department": "Ariege"}
     )
     result = await hass.config_entries.subentries.async_configure(
         result["flow_id"], {"massif": MASSIF_NAME}

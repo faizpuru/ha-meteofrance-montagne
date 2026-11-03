@@ -3,9 +3,11 @@ import pytest
 from homeassistant.components.image import async_get_image
 from homeassistant.const import ATTR_ATTRIBUTION, ATTR_UNIT_OF_MEASUREMENT, STATE_UNKNOWN
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import entity_registry as er
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
+from custom_components.meteofrance_montagne.api import MeteoFranceMontagneOffSeason
 from custom_components.meteofrance_montagne.const import DOMAIN
 
 from .conftest import MASSIF_ID, PNG, load_resource
@@ -60,6 +62,25 @@ async def test_risque(hass: HomeAssistant, config_entry):
 @pytest.mark.parametrize(
     "bulletin_xml",
     [
+        load_resource("sample_bulletin.xml").replace(
+            b'DATE="2025-11-15T00:00:00" RISQUEMAXI="1"',
+            b'DATE="2025-11-15T00:00:00" RISQUEMAXI=""',
+        )
+    ],
+    ids=["day_without_bulletin"],
+)
+async def test_risque_historique(hass: HomeAssistant, config_entry):
+    """Give no risk for the history days without bulletin."""
+    await setup_entry(hass, config_entry)
+
+    historique = get_state(hass, "sensor", "risque_max").attributes["historique"]
+    assert historique[0] == {"date": "2025-11-15T00:00:00", "risque_max": None}
+    assert historique[-1] == {"date": "2025-11-21T00:00:00", "risque_max": "2"}
+
+
+@pytest.mark.parametrize(
+    "bulletin_xml",
+    [
         load_resource("sample_bulletin.xml")
         .replace(b'LOC1="" ALTITUDE="" RISQUE2=""', b'LOC1="E" ALTITUDE="" RISQUE2="2"')
         .replace(b'LOC2=""', b'LOC2="O"')
@@ -94,9 +115,12 @@ async def test_snow(hass: HomeAssistant, config_entry):
         "2025-11-21T00:00:00",
         "2025-11-22T00:00:00",
     ]
+    assert set(state.attributes["historique"][0]) == {"date", "min_cm", "max_cm"}
 
     state = get_state(hass, "sensor", "stabilite")
     assert state.state == "Neige fraîche"
+    assert state.attributes["titre"] == "Manteau neigeux récent encore instable"
+    assert state.attributes["texte"].startswith("Déclenchements provoqués")
     assert state.attributes["situations"] == [
         {"code": "1", "type": "Neige fraîche"},
         {"code": "2", "type": "Neige ventée"},
@@ -108,6 +132,43 @@ async def test_snow(hass: HomeAssistant, config_entry):
         "fonds de vallée prenant rapidement de l'épaisseur avec l'altitude."
     )
     assert state.attributes["texte_complet"].startswith(state.state)
+
+
+@pytest.mark.parametrize(
+    "bulletin_xml",
+    [
+        load_resource("sample_bulletin.xml").replace(
+            b'LimiteSud="600" LimiteNord="600"', b'LimiteSud="-1" LimiteNord="2500"'
+        )
+    ],
+    ids=["no_snow_south"],
+)
+async def test_snow_no_continuous_cover(hass: HomeAssistant, config_entry):
+    """Leave unknown the snow line of a slope without continuous snow cover."""
+    await setup_entry(hass, config_entry)
+
+    assert get_state(hass, "sensor", "enneigement_nord").state == "2500"
+    state = get_state(hass, "sensor", "enneigement_sud")
+    assert state.state == STATE_UNKNOWN
+    assert state.attributes["limite_sud_m"] is None
+
+
+@pytest.mark.parametrize(
+    "bulletin_xml",
+    [
+        load_resource("sample_bulletin.xml").replace(
+            "Le jour se lève samedi avec".encode(),
+            "Limites skiables : non skiable.Le jour se lève samedi avec".encode(),
+        )
+    ],
+    ids=["glued_sentences"],
+)
+async def test_qualite_glued_sentences(hass: HomeAssistant, config_entry):
+    """Stop the state at a period followed by a capital without a space."""
+    await setup_entry(hass, config_entry)
+
+    state = get_state(hass, "sensor", "qualite_neige")
+    assert state.state == "Limites skiables : non skiable."
 
 
 LONG_SENTENCE = "Neige sèche et froide sur les pentes nord, " * 10
@@ -246,4 +307,24 @@ async def test_images(hass: HomeAssistant, config_entry, freezer):
     assert image.content_type == "image/png"
     # DATEBULLETIN 16:00 in Paris, winter time
     assert hass.states.get(image_id).state == "2025-11-21T15:00:00+00:00"
+
+
+async def test_image_not_published(hass: HomeAssistant, config_entry, mock_call_api):
+    """Leave unknown an image missing from the API, without hiding the bulletin."""
+    side_effect = mock_call_api.side_effect
+
+    async def no_seven_days(url):
+        if "/sept-derniers-jours" in url:
+            raise MeteoFranceMontagneOffSeason('{"detail":"no matching blob"}')
+        return await side_effect(url)
+
+    mock_call_api.side_effect = no_seven_days
+    await setup_entry(hass, config_entry)
+
+    assert get_state(hass, "sensor", "risque_max").state == "3"
+    assert get_state(hass, "image", "rose_pentes").state != STATE_UNKNOWN
+    image_id = entity_id(hass, "image", "sept_derniers_jours")
+    assert hass.states.get(image_id).state == STATE_UNKNOWN
+    with pytest.raises(HomeAssistantError):
+        await async_get_image(hass, image_id)
 

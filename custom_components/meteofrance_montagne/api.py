@@ -152,7 +152,11 @@ class MeteoFranceMontagneApi:
         stabilite = {
             'situations_avalancheuses': situations_avalancheuses,
             'titre': get_text(stabilite_elem.find('TITRE')) if stabilite_elem is not None else '',
-            'texte': get_text(stabilite_elem.find('TEXTE')) if stabilite_elem is not None else ''
+            # TEXTE repeats the title, TEXTESANSTITRE does not
+            'texte': (
+                get_text(stabilite_elem.find('TEXTESANSTITRE'))
+                or get_text(stabilite_elem.find('TEXTE'))
+            ) if stabilite_elem is not None else ''
         }
 
         # Parse QUALITE
@@ -338,10 +342,15 @@ class MeteoFranceMontagneApi:
         return self.parse_bulletin_xml(xml_doc)
 
     async def image(self, image_type, massif):
-        """Get image for a massif."""
+        """Get image for a massif, None when it is not published."""
         url = f"{BASE_URL}/massif/image/{image_type}?id-massif={massif}"
-        result = await self.call_api(url)
-        return result
+        try:
+            return await self.call_api(url)
+        except MeteoFranceMontagneOffSeason:
+            # Some massifs lack an image during the season, e.g. the last
+            # seven days in Corsica
+            _LOGGER.debug("No %s image for massif %s", image_type, massif)
+            return None
 
     async def rose_pentes(self, massif):
         return await self.image("rose-pentes", massif)
