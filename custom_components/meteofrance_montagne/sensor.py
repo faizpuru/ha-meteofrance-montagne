@@ -84,6 +84,7 @@ def _risque_attrs(data: dict) -> dict[str, Any]:
         "avis": _clean_text(risque.get("avis")),
         "date_validite": data.get("date_validite"),
         "amendement": data.get("amendement"),
+        "date_diffusion": data.get("date_diffusion"),
         "last_update": data.get("date"),
     }
 
@@ -470,6 +471,17 @@ SENSOR_TYPES: tuple[MeteoFranceMontagneSensorEntityDescription, ...] = (
         state_class=SensorStateClass.MEASUREMENT,
         # -1 when the weather is dry
         value_fn=lambda data: _echeance_value(_prochaine_echeance(data).get("pluie_neige")),
+        attrs_fn=_echeance_attrs,
+    ),
+    MeteoFranceMontagneSensorEntityDescription(
+        key="mer_nuages",
+        translation_key="mer_nuages",
+        icon="mdi:weather-fog",
+        device_class=SensorDeviceClass.DISTANCE,
+        native_unit_of_measurement=UnitOfLength.METERS,
+        state_class=SensorStateClass.MEASUREMENT,
+        # -1 without a sea of clouds
+        value_fn=lambda data: _echeance_value(_prochaine_echeance(data).get("mer_nuages")),
         attrs_fn=_echeance_attrs,
     ),
     MeteoFranceMontagneSensorEntityDescription(

@@ -133,6 +133,7 @@ class MeteoFranceMontagneDataUpdateCoordinator(DataUpdateCoordinator):
             "date": bulletin_date,
             "date_validite": bulletin["dateValidite"],
             "amendement": bulletin["amendement"],
+            "date_diffusion": bulletin["dateDiffusion"],
             "attribution": bulletin["partenaires"],
             "risque": bulletin["risque"],
             "qualite": bulletin["qualite"],

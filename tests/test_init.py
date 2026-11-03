@@ -52,7 +52,7 @@ async def test_setup_and_unload(hass: HomeAssistant, config_entry):
     entities = er.async_entries_for_config_entry(
         er.async_get(hass), config_entry.entry_id
     )
-    assert len(entities) == 19
+    assert len(entities) == 20
     (subentry_id,) = config_entry.subentries
     assert {entity.config_subentry_id for entity in entities} == {subentry_id}
 

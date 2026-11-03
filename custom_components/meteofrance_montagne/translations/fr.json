@@ -125,6 +125,9 @@
             "limite_pluie_neige": {
                 "name": "Limite pluie-neige"
             },
+            "mer_nuages": {
+                "name": "Mer de nuages"
+            },
             "vent_bas": {
                 "name": "Vent bas"
             },

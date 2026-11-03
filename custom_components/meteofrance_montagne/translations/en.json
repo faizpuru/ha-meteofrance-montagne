@@ -125,6 +125,9 @@
             "limite_pluie_neige": {
                 "name": "Rain-snow limit"
             },
+            "mer_nuages": {
+                "name": "Sea of clouds"
+            },
             "vent_bas": {
                 "name": "Low-altitude wind"
             },
