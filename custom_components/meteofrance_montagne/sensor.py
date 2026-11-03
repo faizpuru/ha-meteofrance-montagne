@@ -44,7 +44,8 @@ def _first_sentence(value: str | None, attribute: str) -> str | None:
     """Return the first sentence of a text, short enough for a state."""
     if not (text := _clean_text(value)):
         return None
-    text = re.split(r"(?<=[.!?])\s+", text, maxsplit=1)[0]
+    # Sentences are sometimes glued: "non skiable.Enneigement : ..."
+    text = re.split(r"(?<=[.!?])\s+|(?<=[a-zà-ÿ][.!?])(?=[A-ZÀ-Ý])", text, maxsplit=1)[0]
     if len(text) <= MAX_LENGTH_STATE_STATE:
         return text
     # Point to the attribute holding the whole text
@@ -150,6 +151,14 @@ def _risque_j2_attrs(data: dict) -> dict[str, Any]:
 
 # Snow cover
 
+def _limite_enneigement(value: int | None) -> int | None:
+    """Return a snow line, None without continuous snow cover.
+
+    The bulletin gives -1 in that case, and 0 in the history.
+    """
+    return None if value is None or value <= 0 else value
+
+
 def _enneigement_attrs(orientation: str) -> Callable[[dict], dict[str, Any]]:
     """Return the attributes builder of the north or south snow limit."""
 
@@ -158,7 +167,7 @@ def _enneigement_attrs(orientation: str) -> Callable[[dict], dict[str, Any]]:
         attrs = {
             "date": enneigement.get("date"),
             "last_update": data.get("date"),
-            f"limite_{orientation}_m": enneigement.get(f"limite_{orientation}"),
+            f"limite_{orientation}_m": _limite_enneigement(enneigement.get(f"limite_{orientation}")),
             # Snow depth levels for this orientation
             "niveaux": [
                 {
@@ -174,7 +183,7 @@ def _enneigement_attrs(orientation: str) -> Callable[[dict], dict[str, Any]]:
             attrs["historique"] = [
                 {
                     "date": h.get("date"),
-                    f"limite_{orientation}": h.get(f"limite_{orientation}"),
+                    f"limite_{orientation}": _limite_enneigement(h.get(f"limite_{orientation}")),
                     "niveaux": [
                         {
                             "altitude_m": n.get("altitude"),
@@ -404,7 +413,7 @@ SENSOR_TYPES: tuple[MeteoFranceMontagneSensorEntityDescription, ...] = (
         device_class=SensorDeviceClass.DISTANCE,
         native_unit_of_measurement=UnitOfLength.METERS,
         state_class=SensorStateClass.MEASUREMENT,
-        value_fn=lambda data: data["enneigement"].get("limite_nord"),
+        value_fn=lambda data: _limite_enneigement(data["enneigement"].get("limite_nord")),
         attrs_fn=_enneigement_attrs("nord"),
     ),
     MeteoFranceMontagneSensorEntityDescription(
@@ -414,7 +423,7 @@ SENSOR_TYPES: tuple[MeteoFranceMontagneSensorEntityDescription, ...] = (
         device_class=SensorDeviceClass.DISTANCE,
         native_unit_of_measurement=UnitOfLength.METERS,
         state_class=SensorStateClass.MEASUREMENT,
-        value_fn=lambda data: data["enneigement"].get("limite_sud"),
+        value_fn=lambda data: _limite_enneigement(data["enneigement"].get("limite_sud")),
         attrs_fn=_enneigement_attrs("sud"),
     ),
     MeteoFranceMontagneSensorEntityDescription(

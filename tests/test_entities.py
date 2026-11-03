@@ -110,6 +110,43 @@ async def test_snow(hass: HomeAssistant, config_entry):
     assert state.attributes["texte_complet"].startswith(state.state)
 
 
+@pytest.mark.parametrize(
+    "bulletin_xml",
+    [
+        load_resource("sample_bulletin.xml").replace(
+            b'LimiteSud="600" LimiteNord="600"', b'LimiteSud="-1" LimiteNord="2500"'
+        )
+    ],
+    ids=["no_snow_south"],
+)
+async def test_snow_no_continuous_cover(hass: HomeAssistant, config_entry):
+    """Leave unknown the snow line of a slope without continuous snow cover."""
+    await setup_entry(hass, config_entry)
+
+    assert get_state(hass, "sensor", "enneigement_nord").state == "2500"
+    state = get_state(hass, "sensor", "enneigement_sud")
+    assert state.state == STATE_UNKNOWN
+    assert state.attributes["limite_sud_m"] is None
+
+
+@pytest.mark.parametrize(
+    "bulletin_xml",
+    [
+        load_resource("sample_bulletin.xml").replace(
+            "Le jour se lève samedi avec".encode(),
+            "Limites skiables : non skiable.Le jour se lève samedi avec".encode(),
+        )
+    ],
+    ids=["glued_sentences"],
+)
+async def test_qualite_glued_sentences(hass: HomeAssistant, config_entry):
+    """Stop the state at a period followed by a capital without a space."""
+    await setup_entry(hass, config_entry)
+
+    state = get_state(hass, "sensor", "qualite_neige")
+    assert state.state == "Limites skiables : non skiable."
+
+
 LONG_SENTENCE = "Neige sèche et froide sur les pentes nord, " * 10
 
 
