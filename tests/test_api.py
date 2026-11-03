@@ -201,6 +201,18 @@ async def test_call_api_errors(hass: HomeAssistant, aioclient_mock, status, erro
         await api.call_api(BULLETIN_URL)
 
 
+async def test_image_not_published(hass: HomeAssistant, aioclient_mock):
+    """Return no image when the API has none for the massif."""
+    aioclient_mock.get(
+        f"{BASE_URL}/massif/image/sept-derniers-jours?id-massif=40",
+        status=404,
+        json={"detail": "no matching blob"},
+    )
+    api = MeteoFranceMontagneApi(async_get_clientsession(hass), hass, TOKEN)
+
+    assert await api.sept_derniers_jours(40) is None
+
+
 async def test_call_api_sends_key(hass: HomeAssistant, aioclient_mock):
     """Send the API key and organize the massifs by department."""
     aioclient_mock.get(f"{BASE_URL}/liste-massifs", json=MASSIFS)

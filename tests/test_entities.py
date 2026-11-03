@@ -3,9 +3,11 @@ import pytest
 from homeassistant.components.image import async_get_image
 from homeassistant.const import ATTR_ATTRIBUTION, ATTR_UNIT_OF_MEASUREMENT, STATE_UNKNOWN
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import entity_registry as er
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
+from custom_components.meteofrance_montagne.api import MeteoFranceMontagneOffSeason
 from custom_components.meteofrance_montagne.const import DOMAIN
 
 from .conftest import MASSIF_ID, PNG, load_resource
@@ -283,4 +285,24 @@ async def test_images(hass: HomeAssistant, config_entry, freezer):
     assert image.content_type == "image/png"
     # DATEBULLETIN 16:00 in Paris, winter time
     assert hass.states.get(image_id).state == "2025-11-21T15:00:00+00:00"
+
+
+async def test_image_not_published(hass: HomeAssistant, config_entry, mock_call_api):
+    """Leave unknown an image missing from the API, without hiding the bulletin."""
+    side_effect = mock_call_api.side_effect
+
+    async def no_seven_days(url):
+        if "/sept-derniers-jours" in url:
+            raise MeteoFranceMontagneOffSeason('{"detail":"no matching blob"}')
+        return await side_effect(url)
+
+    mock_call_api.side_effect = no_seven_days
+    await setup_entry(hass, config_entry)
+
+    assert get_state(hass, "sensor", "risque_max").state == "3"
+    assert get_state(hass, "image", "rose_pentes").state != STATE_UNKNOWN
+    image_id = entity_id(hass, "image", "sept_derniers_jours")
+    assert hass.states.get(image_id).state == STATE_UNKNOWN
+    with pytest.raises(HomeAssistantError):
+        await async_get_image(hass, image_id)
 

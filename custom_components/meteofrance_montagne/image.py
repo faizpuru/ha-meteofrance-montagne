@@ -46,18 +46,20 @@ class MeteoFranceMontagneImage(MeteoFranceMontagneEntity, ImageEntity):
         ImageEntity.__init__(self, coordinator.hass)
         self._image_type = image_type
         self._attr_translation_key = image_type
-        self._attr_image_last_updated = coordinator.updated_at
-        if coordinator.data is not None:
-            self._cached_image = Image(
-                "image/png", coordinator.data.get(image_type))
+        self._set_image()
+
+    def _set_image(self) -> None:
+        """Take the image of the bulletin, none when it is not published."""
+        content = (self.coordinator.data or {}).get(self._image_type)
+        self._attr_image_last_updated = self.coordinator.updated_at if content else None
+        self._cached_image = Image("image/png", content) if content else None
 
     @callback
     def _handle_coordinator_update(self) -> None:
         """Handle updated data from the coordinator."""
-        if self.coordinator.data and self.coordinator.data.get(self._image_type):
-            self._attr_image_last_updated = self.coordinator.updated_at
-            self._cached_image = Image(
-                "image/png", self.coordinator.data.get(self._image_type))
+        # Keep the last images outside the season
+        if self.coordinator.data and not self.coordinator.data.get("hors_saison"):
+            self._set_image()
             self.async_write_ha_state()
 
     async def async_image(self) -> bytes | None:
