@@ -47,6 +47,7 @@ async def test_risque(hass: HomeAssistant, config_entry):
     assert state.attributes["risque_max_texte"] == "Marqué"
     assert state.attributes["date_validite"] == "2025-11-22T18:00:00"
     assert state.attributes["amendement"] is False
+    assert state.attributes["date_diffusion"] == "2025-11-21T16:25:00"
     assert state.attributes["zones"] == [
         {"valeur": "3", "texte": "Marqué", "couleur": "#FF9900"}
     ]
@@ -220,6 +221,7 @@ async def test_meteo(hass: HomeAssistant, config_entry, freezer):
             {
                 "isotherme_0": "500",
                 "limite_pluie_neige": "300",
+                "mer_nuages": STATE_UNKNOWN,
                 "vent_bas": "45",
                 "vent_haut": "85",
                 "meteo": "Neige faible",
@@ -232,6 +234,7 @@ async def test_meteo(hass: HomeAssistant, config_entry, freezer):
             {
                 "isotherme_0": "1200",
                 "limite_pluie_neige": STATE_UNKNOWN,
+                "mer_nuages": STATE_UNKNOWN,
                 "vent_bas": "35",
                 "vent_haut": "55",
                 "meteo": "Clair",
@@ -244,6 +247,7 @@ async def test_meteo(hass: HomeAssistant, config_entry, freezer):
             {
                 "isotherme_0": STATE_UNKNOWN,
                 "limite_pluie_neige": STATE_UNKNOWN,
+                "mer_nuages": STATE_UNKNOWN,
                 "vent_bas": STATE_UNKNOWN,
                 "vent_haut": STATE_UNKNOWN,
                 "meteo": STATE_UNKNOWN,
@@ -259,7 +263,9 @@ async def test_prochaine_echeance(
     freezer.move_to(now)
     await setup_entry(hass, config_entry)
 
-    for key in ("meteo", "isotherme_0", "limite_pluie_neige", "vent_bas", "vent_haut"):
+    for key in (
+        "meteo", "isotherme_0", "limite_pluie_neige", "mer_nuages", "vent_bas", "vent_haut"
+    ):
         state = get_state(hass, "sensor", key)
         assert state.state == expected[key], key
         assert state.attributes["date_echeance"] == expected["date_echeance"]
@@ -267,6 +273,28 @@ async def test_prochaine_echeance(
     state = get_state(hass, "sensor", "vent_haut")
     assert state.attributes[ATTR_UNIT_OF_MEASUREMENT] == "km/h"
     assert state.attributes["altitude_m"] == 3000
+
+
+@pytest.mark.parametrize(
+    "bulletin_xml",
+    [
+        load_resource("sample_bulletin.xml").replace(
+            b'ISO0="500" PLUIENEIGE="300" TEMPSSENSIBLE="61" MERNUAGES="-1"',
+            b'ISO0="500" PLUIENEIGE="300" TEMPSSENSIBLE="7" MERNUAGES="1400"',
+        )
+    ],
+    ids=["sea_of_clouds"],
+)
+async def test_mer_nuages(hass: HomeAssistant, config_entry, freezer):
+    """Give the top of the sea of clouds of the next forecast step."""
+    freezer.move_to(BULLETIN_EVENING)
+    await setup_entry(hass, config_entry)
+
+    assert get_state(hass, "sensor", "meteo").state == "Mer de nuages"
+    state = get_state(hass, "sensor", "mer_nuages")
+    assert state.state == "1400"
+    assert state.attributes[ATTR_UNIT_OF_MEASUREMENT] == "m"
+    assert state.attributes["date_echeance"] == "2025-11-22T06:00:00"
 
 
 async def test_avis_off(hass: HomeAssistant, config_entry):

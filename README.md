@@ -60,7 +60,7 @@ Intégration Home Assistant pour consulter les **Bulletins d'estimation du Risqu
 4. Entrez votre **token API Météo-France**
 5. Sélectionnez le **département** puis le **massif** à surveiller
 
-Chaque massif apparaît comme un appareil qui regroupe ses 19 entités.
+Chaque massif apparaît comme un appareil qui regroupe ses 20 entités.
 
 ### Ajouter d'autres massifs
 
@@ -100,6 +100,7 @@ Pour chaque massif configuré, l'intégration crée **12 sensors**, **1 binary s
   - `avis` : Avis officiel, vide ou « fort risque d'avalanche » / « très fort risque d'avalanche »
   - `date_validite` : Fin de validité du bulletin. Le bulletin est rédigé vers 16h et le risque vaut pour le lendemain, jusqu'à 18h.
   - `amendement` : `true` si le bulletin a été corrigé
+  - `date_diffusion` : Date de diffusion du bulletin, qui change quand il est corrigé
   - `altitude_limite_m` : Altitude de séparation des zones (si 2 zones d'altitude)
   - `zones` : Liste des zones de risque, séparées par l'altitude ou par l'orientation
     ```json
@@ -198,12 +199,13 @@ Pour chaque massif configuré, l'intégration crée **12 sensors**, **1 binary s
 
 #### Prévisions de la prochaine échéance
 
-Ces 4 capteurs donnent la valeur de la prochaine échéance à venir parmi les 4 prévisions du bulletin (06h, 12h, 18h et minuit du lendemain). Leur attribut `date_echeance` indique l'échéance utilisée.
+Ces 5 capteurs donnent la valeur de la prochaine échéance à venir parmi les 4 prévisions du bulletin (06h, 12h, 18h et minuit du lendemain). Leur attribut `date_echeance` indique l'échéance utilisée.
 
 | Capteur | Identifiant (installation en français) | Unité | Attributs |
 |---|---|---|---|
 | Isotherme 0 | `sensor.{massif}_isotherme_0` | m | `date_echeance` |
 | Limite pluie-neige | `sensor.{massif}_limite_pluie_neige` | m, sans valeur par temps sec | `date_echeance` |
+| Mer de nuages | `sensor.{massif}_mer_de_nuages` | m, sans valeur sans mer de nuages | `date_echeance` |
 | Vent bas | `sensor.{massif}_vent_bas` | km/h | `direction`, `altitude_m`, `date_echeance` |
 | Vent haut | `sensor.{massif}_vent_haut` | km/h | `direction`, `altitude_m`, `date_echeance` |
 
