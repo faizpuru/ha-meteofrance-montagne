@@ -165,6 +165,41 @@ async def test_images_fetched_once_per_bulletin(
     assert mock_call_api.await_count == 8
 
 
+@pytest.mark.parametrize(
+    ("diffusion", "await_count"),
+    [("2025-11-21T16:25:00", 8), ("2025-11-21T19:40:00", 14)],
+    ids=["same_diffusion", "amended"],
+)
+async def test_bulletin_corrected(
+    hass: HomeAssistant, config_entry, mock_call_api, diffusion, await_count
+):
+    """Show a corrected bulletin of the same date, with new images once diffused again."""
+    await setup_entry(hass, config_entry)
+    side_effect = mock_call_api.side_effect
+
+    async def corrected(url):
+        if "/massif/BRA" in url:
+            return (
+                load_resource("sample_bulletin.xml")
+                .replace(b'RISQUEMAXI="3"', b'RISQUEMAXI="4"')
+                .replace(
+                    b'DATEDIFFUSION="2025-11-21T16:25:00"',
+                    f'DATEDIFFUSION="{diffusion}"'.encode(),
+                )
+            )
+        return await side_effect(url)
+
+    mock_call_api.side_effect = corrected
+    async_fire_time_changed(hass, dt_util.utcnow() + timedelta(hours=UPDATE_INTERVAL))
+    await hass.async_block_till_done(wait_background_tasks=True)
+
+    entity_id = er.async_get(hass).async_get_entity_id(
+        "sensor", DOMAIN, f"{MASSIF_ID}_risque_max"
+    )
+    assert hass.states.get(entity_id).state == "4"
+    assert mock_call_api.await_count == await_count
+
+
 async def test_migration_from_v2(hass: HomeAssistant):
     """Turn the version 2 massif entries into subentries, keeping their entities."""
     parent = MockConfigEntry(

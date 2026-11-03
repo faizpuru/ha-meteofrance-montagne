@@ -46,6 +46,8 @@ class MeteoFranceMontagneDataUpdateCoordinator(DataUpdateCoordinator):
         self.massif_id = massif_id
         self.massif_name = massif_name
         self.updated_at = None
+        # Writing and diffusion times of the bulletin whose images were downloaded
+        self._published = None
 
         super().__init__(
             hass,
@@ -86,6 +88,7 @@ class MeteoFranceMontagneDataUpdateCoordinator(DataUpdateCoordinator):
             self.update_interval = timedelta(hours=OFF_SEASON_UPDATE_INTERVAL)
         # Download the images again with the first bulletin of the season
         self.updated_at = None
+        self._published = None
         return {
             "hors_saison": True,
             "message": message,
@@ -93,37 +96,38 @@ class MeteoFranceMontagneDataUpdateCoordinator(DataUpdateCoordinator):
         }
 
     async def _async_fetch(self):
-        """Fetch the bulletin, and the images when the bulletin has changed."""
+        """Fetch the bulletin, and the images when a new bulletin is published."""
         bulletin = await self.api.bulletin(self.massif_id)
         bulletin_date = bulletin["dateBulletin"]
         bulletin_datetime = parse_bulletin_time(bulletin_date)
+        # An amended bulletin may keep its writing time, not its diffusion time
+        published = (bulletin_datetime, bulletin["dateDiffusion"])
 
-        # Check if bulletin date has changed since last update
-        if self.data and bulletin_datetime == self.updated_at:
+        if self.data and published == self._published:
             _LOGGER.debug(
-                "Bulletin date unchanged (%s) for massif %s, skipping image download",
+                "Bulletin unchanged (%s) for massif %s, skipping image download",
                 bulletin_date,
                 self.massif_name
             )
-            # Return existing data without re-downloading images
-            return self.data
+            # Keep the images, the texts are taken from the bulletin just read
+            images = {image_type: self.data.get(image_type) for image_type in IMAGE_TYPES}
+        else:
+            _LOGGER.debug(
+                "New bulletin (old: %s, new: %s) for massif %s, downloading images",
+                self._published,
+                published,
+                self.massif_name
+            )
 
-        # Bulletin has changed or first fetch, download everything
-        _LOGGER.debug(
-            "Bulletin date changed (old: %s, new: %s) for massif %s, downloading images",
-            self.updated_at,
-            bulletin_datetime,
-            self.massif_name
-        )
+            # Fetch the images in parallel
+            contents = await asyncio.gather(*(
+                getattr(self.api, image_type)(self.massif_id) for image_type in IMAGE_TYPES
+            ))
+            images = dict(zip(IMAGE_TYPES, contents))
 
-        # Fetch the images in parallel
-        contents = await asyncio.gather(*(
-            getattr(self.api, image_type)(self.massif_id) for image_type in IMAGE_TYPES
-        ))
-        images = dict(zip(IMAGE_TYPES, contents))
-
-        # Only mark the bulletin as processed once everything was downloaded
-        self.updated_at = bulletin_datetime
+            # Only mark the bulletin as processed once everything was downloaded
+            self.updated_at = bulletin_datetime
+            self._published = published
 
         return {
             "date": bulletin_date,
