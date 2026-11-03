@@ -26,9 +26,9 @@ PNG = b"\x89PNG\r\n\x1a\n"
 # Answer of /liste-massifs, reduced to the properties the integration reads
 MASSIFS = {
     "features": [
-        {"properties": {"title": "Orlu St-Barthelemy", "code": 72, "Departemen": "Ariège"}},
-        {"properties": {"title": "Haute-Ariège", "code": 71, "Departemen": "Ariège"}},
-        {"properties": {"title": "Champsaur", "code": 16, "Departemen": "Hautes-Alpes"}},
+        {"properties": {"title": "Orlu St-Barthelemy", "code": 72, "Departement": "Ariege"}},
+        {"properties": {"title": "Haute-Ariege", "code": 70, "Departement": "Ariege"}},
+        {"properties": {"title": "Champsaur", "code": 19, "Departement": "Hautes-Alpes"}},
     ]
 }
 
@@ -81,7 +81,7 @@ def config_entry() -> MockConfigEntry:
             {
                 "data": {CONF_MASSIF: MASSIF_ID, CONF_MASSIF_NAME: MASSIF_NAME},
                 "subentry_type": SUBENTRY_TYPE_MASSIF,
-                "title": f"Ariège - {MASSIF_NAME}",
+                "title": f"Ariege - {MASSIF_NAME}",
                 "unique_id": str(MASSIF_ID),
             }
         ],

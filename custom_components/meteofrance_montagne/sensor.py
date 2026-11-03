@@ -124,7 +124,11 @@ def _risque_attrs(data: dict) -> dict[str, Any]:
 
     # Add historical risk data
     if "historique" in risque:
-        attrs["historique"] = risque.get("historique", [])
+        attrs["historique"] = [
+            # No risk on the days without bulletin
+            {"date": h.get("date"), "risque_max": h.get("risque_max") or None}
+            for h in risque.get("historique", [])
+        ]
 
     return attrs
 
@@ -252,7 +256,7 @@ def _neige_fraiche_attrs(data: dict) -> dict[str, Any]:
 
     # Add historical fresh snow data
     if "historique" in neige:
-        attrs["historique"] = neige.get("historique", [])
+        attrs["historique"] = [_mesure_attrs(mesure) for mesure in neige.get("historique", [])]
 
     return attrs
 

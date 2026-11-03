@@ -62,6 +62,25 @@ async def test_risque(hass: HomeAssistant, config_entry):
 @pytest.mark.parametrize(
     "bulletin_xml",
     [
+        load_resource("sample_bulletin.xml").replace(
+            b'DATE="2025-11-15T00:00:00" RISQUEMAXI="1"',
+            b'DATE="2025-11-15T00:00:00" RISQUEMAXI=""',
+        )
+    ],
+    ids=["day_without_bulletin"],
+)
+async def test_risque_historique(hass: HomeAssistant, config_entry):
+    """Give no risk for the history days without bulletin."""
+    await setup_entry(hass, config_entry)
+
+    historique = get_state(hass, "sensor", "risque_max").attributes["historique"]
+    assert historique[0] == {"date": "2025-11-15T00:00:00", "risque_max": None}
+    assert historique[-1] == {"date": "2025-11-21T00:00:00", "risque_max": "2"}
+
+
+@pytest.mark.parametrize(
+    "bulletin_xml",
+    [
         load_resource("sample_bulletin.xml")
         .replace(b'LOC1="" ALTITUDE="" RISQUE2=""', b'LOC1="E" ALTITUDE="" RISQUE2="2"')
         .replace(b'LOC2=""', b'LOC2="O"')
@@ -96,9 +115,12 @@ async def test_snow(hass: HomeAssistant, config_entry):
         "2025-11-21T00:00:00",
         "2025-11-22T00:00:00",
     ]
+    assert set(state.attributes["historique"][0]) == {"date", "min_cm", "max_cm"}
 
     state = get_state(hass, "sensor", "stabilite")
     assert state.state == "Neige fraîche"
+    assert state.attributes["titre"] == "Manteau neigeux récent encore instable"
+    assert state.attributes["texte"].startswith("Déclenchements provoqués")
     assert state.attributes["situations"] == [
         {"code": "1", "type": "Neige fraîche"},
         {"code": "2", "type": "Neige ventée"},
