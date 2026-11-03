@@ -152,7 +152,11 @@ class MeteoFranceMontagneApi:
         stabilite = {
             'situations_avalancheuses': situations_avalancheuses,
             'titre': get_text(stabilite_elem.find('TITRE')) if stabilite_elem is not None else '',
-            'texte': get_text(stabilite_elem.find('TEXTE')) if stabilite_elem is not None else ''
+            # TEXTE repeats the title, TEXTESANSTITRE does not
+            'texte': (
+                get_text(stabilite_elem.find('TEXTESANSTITRE'))
+                or get_text(stabilite_elem.find('TEXTE'))
+            ) if stabilite_elem is not None else ''
         }
 
         # Parse QUALITE
