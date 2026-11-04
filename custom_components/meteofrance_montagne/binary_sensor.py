@@ -21,7 +21,7 @@ async def async_setup_entry(
     async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
     """Set up the Météo-France Montagne binary sensors."""
-    for subentry_id, coordinator in entry.runtime_data.items():
+    for subentry_id, coordinator in entry.runtime_data.massifs.items():
         async_add_entities(
             [MeteoFranceMontagneAvisSensor(coordinator)],
             config_subentry_id=subentry_id,

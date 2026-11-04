@@ -8,6 +8,7 @@ from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from custom_components.meteofrance_montagne.api import (
     MeteoFranceMontagneApi,
+    in_massif,
     MeteoFranceMontagneApiError,
     MeteoFranceMontagneAuthError,
     MeteoFranceMontagneOffSeason,
@@ -231,11 +232,39 @@ async def test_call_api_sends_key(hass: HomeAssistant, aioclient_mock):
     aioclient_mock.get(f"{BASE_URL}/liste-massifs", json=MASSIFS)
     api = MeteoFranceMontagneApi(async_get_clientsession(hass), hass, TOKEN)
 
-    assert await api.list_massif() == {
-        "Ariege": [
-            {"title": "Orlu St-Barthelemy", "code": 72},
-            {"title": "Haute-Ariege", "code": 70},
-        ],
-        "Hautes-Alpes": [{"title": "Champsaur", "code": 19}],
+    massifs = await api.list_massif()
+    assert {
+        department: [(massif["title"], massif["code"]) for massif in department_massifs]
+        for department, department_massifs in massifs.items()
+    } == {
+        "Ariege": [("Orlu St-Barthelemy", 72), ("Haute-Ariege", 70)],
+        "Hautes-Alpes": [("Champsaur", 19)],
+        "Savoie": [("Haute-Tarentaise", 6)],
     }
+    assert massifs["Hautes-Alpes"][0]["geometry"]["type"] == "MultiPolygon"
     assert aioclient_mock.mock_calls[0][3]["apikey"] == TOKEN
+
+
+@pytest.mark.parametrize(
+    ("longitude", "latitude", "expected"),
+    [(1.0, 1.0, True), (2.5, 1.0, False), (1.5, 1.5, False), (6.0, 6.0, True)],
+    ids=["inside", "outside", "hole", "second_polygon"],
+)
+def test_in_massif(longitude, latitude, expected):
+    """Find a point in a massif made of a holed polygon and an island."""
+    geometry = {
+        "type": "MultiPolygon",
+        "coordinates": [
+            [
+                [[0, 0], [2, 0], [2, 2], [0, 2], [0, 0]],
+                [[1.25, 1.25], [1.75, 1.25], [1.75, 1.75], [1.25, 1.75], [1.25, 1.25]],
+            ],
+            [[[5, 5], [7, 5], [7, 7], [5, 7], [5, 5]]],
+        ],
+    }
+    assert in_massif(longitude, latitude, geometry) is expected
+
+
+def test_in_massif_without_geometry():
+    """Find no station in a massif without geometry."""
+    assert in_massif(1.0, 1.0, None) is False

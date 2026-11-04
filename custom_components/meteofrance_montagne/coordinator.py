@@ -15,8 +15,15 @@ from .api import (
     MeteoFranceMontagneApiError,
     MeteoFranceMontagneAuthError,
     MeteoFranceMontagneOffSeason,
+    MeteoFranceNivoApi,
 )
-from .const import DOMAIN, IMAGE_TYPES, OFF_SEASON_UPDATE_INTERVAL, UPDATE_INTERVAL
+from .const import (
+    DOMAIN,
+    IMAGE_TYPES,
+    OBSERVATION_MAX_AGE,
+    OFF_SEASON_UPDATE_INTERVAL,
+    UPDATE_INTERVAL,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -144,3 +151,43 @@ class MeteoFranceMontagneDataUpdateCoordinator(DataUpdateCoordinator):
             "massif_name": self.massif_name,
             **images
         }
+
+
+class MeteoFranceNivoDataUpdateCoordinator(DataUpdateCoordinator):
+    """Coordinate the observations of all the stations, read from the same file."""
+
+    def __init__(
+        self,
+        hass: HomeAssistant,
+        config_entry: ConfigEntry,
+        session: aiohttp.ClientSession,
+    ) -> None:
+        """Initialize."""
+        self.api = MeteoFranceNivoApi(session, hass)
+
+        super().__init__(
+            hass,
+            _LOGGER,
+            config_entry=config_entry,
+            name=f"{DOMAIN}_observations",
+            # Cheap while the file is unchanged, answered 304
+            update_interval=timedelta(hours=UPDATE_INTERVAL),
+        )
+
+    async def _async_update_data(self) -> dict[str, dict]:
+        """Fetch the last observation of each station."""
+        now = dt_util.utcnow()
+        # Early January, the last observations are still in the previous file
+        years = sorted({
+            now.year,
+            (now - timedelta(hours=OBSERVATION_MAX_AGE)).year,
+        })
+        try:
+            files = await asyncio.gather(*(self.api.observations(year) for year in years))
+        except MeteoFranceMontagneApiError as error:
+            raise UpdateFailed(f"Error fetching the observations: {error}") from error
+
+        observations = {}
+        for observations_of_year in files:
+            observations.update(observations_of_year)
+        return observations
