@@ -79,7 +79,7 @@ Les stations sont celles du réseau nivo-météorologique de Météo-France, ten
 
 Pour changer les stations d'un massif déjà configuré :
 1. Allez dans **Paramètres > Appareils et Services > Météo-France Montagne**
-2. Dans le menu du massif, cliquez sur **"Modifier les stations"**
+2. Cliquez sur la **roue crantée ⚙** de la ligne du massif (infobulle « Modifier les stations »)
 3. Cochez ou décochez les stations : celles décochées sont supprimées avec leurs entités
 
 Chaque station apparaît comme un appareil, rattaché à celui du massif, qui regroupe ses 10 sensors. Les observations viennent d'un [fichier public](https://www.data.gouv.fr/datasets/archive-reseau-nivo-meteorologique) qui ne demande pas de token.
