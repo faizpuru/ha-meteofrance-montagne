@@ -14,7 +14,14 @@ from homeassistant.components.sensor import (
     SensorEntityDescription,
     SensorStateClass,
 )
-from homeassistant.const import MAX_LENGTH_STATE_STATE, UnitOfLength, UnitOfSpeed
+from homeassistant.const import (
+    MAX_LENGTH_STATE_STATE,
+    PERCENTAGE,
+    UnitOfLength,
+    UnitOfPrecipitationDepth,
+    UnitOfSpeed,
+    UnitOfTemperature,
+)
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from homeassistant.helpers.typing import StateType
@@ -26,11 +33,20 @@ from .const import (
     AVALANCHE_RISK_COLORS,
     AVALANCHE_RISK_LEVELS,
     AVALANCHE_SITUATIONS,
+    BLOWING_SNOW,
+    CONF_STATIONS,
+    PRESENT_WEATHER,
     RESOURCES_URL,
+    SKY_CONDITIONS,
+    SNOW_GRAINS,
     WEATHER_CONDITIONS,
 )
-from .coordinator import MeteoFranceMontagneDataUpdateCoordinator, parse_bulletin_time
-from .entity import MeteoFranceMontagneEntity
+from .coordinator import (
+    MeteoFranceMontagneDataUpdateCoordinator,
+    MeteoFranceNivoDataUpdateCoordinator,
+    parse_bulletin_time,
+)
+from .entity import MeteoFranceMontagneEntity, MeteoFranceMontagneStationEntity
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -523,17 +539,174 @@ SENSOR_TYPES: tuple[MeteoFranceMontagneSensorEntityDescription, ...] = (
 )
 
 
+def _temps_observe(observation: dict) -> StateType:
+    """Return the observed weather, the sky when nothing is falling."""
+    if (weather := PRESENT_WEATHER.get(observation.get("temps_present"))) is not None:
+        return weather
+    return SKY_CONDITIONS.get(observation.get("nebulosite"))
+
+
+def _nebulosite_pct(observation: dict) -> int | None:
+    """Return the cloud cover in percent, None when the sky is hidden."""
+    octas = observation.get("nebulosite")
+    return None if octas is None or octas > 8 else round(octas * 12.5)
+
+
+@dataclass(frozen=True, kw_only=True)
+class MeteoFranceMontagneStationSensorEntityDescription(SensorEntityDescription):
+    """Describes a sensor of an observation station."""
+
+    value_fn: Callable[[dict], StateType]
+    attrs_fn: Callable[[dict], dict[str, Any]] = lambda observation: {}
+    picture_fn: Callable[[dict], str | None] = lambda observation: None
+
+
+STATION_SENSOR_TYPES: tuple[MeteoFranceMontagneStationSensorEntityDescription, ...] = (
+    MeteoFranceMontagneStationSensorEntityDescription(
+        key="hauteur_neige",
+        translation_key="hauteur_neige",
+        icon="mdi:snowflake",
+        device_class=SensorDeviceClass.DISTANCE,
+        native_unit_of_measurement=UnitOfLength.CENTIMETERS,
+        state_class=SensorStateClass.MEASUREMENT,
+        value_fn=lambda observation: observation.get("hauteur_neige"),
+        attrs_fn=lambda observation: {
+            # Estimated by the observer higher up
+            "hauteur_neige_altitude_cm": observation.get("hauteur_neige_altitude"),
+        },
+    ),
+    MeteoFranceMontagneStationSensorEntityDescription(
+        key="neige_fraiche_24h",
+        translation_key="neige_fraiche_24h",
+        icon="mdi:weather-snowy-heavy",
+        device_class=SensorDeviceClass.DISTANCE,
+        native_unit_of_measurement=UnitOfLength.CENTIMETERS,
+        state_class=SensorStateClass.MEASUREMENT,
+        value_fn=lambda observation: observation.get("neige_fraiche_24h"),
+        attrs_fn=lambda observation: {
+            # Estimated by the observer higher up
+            "neige_fraiche_altitude_cm": observation.get("neige_fraiche_altitude"),
+        },
+    ),
+    MeteoFranceMontagneStationSensorEntityDescription(
+        key="temperature",
+        translation_key="temperature",
+        device_class=SensorDeviceClass.TEMPERATURE,
+        native_unit_of_measurement=UnitOfTemperature.CELSIUS,
+        state_class=SensorStateClass.MEASUREMENT,
+        value_fn=lambda observation: observation.get("temperature"),
+        attrs_fn=lambda observation: {
+            "temperature_min_24h": observation.get("temperature_min_24h"),
+            "temperature_max_24h": observation.get("temperature_max_24h"),
+        },
+    ),
+    MeteoFranceMontagneStationSensorEntityDescription(
+        key="humidite",
+        translation_key="humidite",
+        device_class=SensorDeviceClass.HUMIDITY,
+        native_unit_of_measurement=PERCENTAGE,
+        state_class=SensorStateClass.MEASUREMENT,
+        value_fn=lambda observation: observation.get("humidite"),
+        attrs_fn=lambda observation: {"point_rosee": observation.get("point_rosee")},
+    ),
+    MeteoFranceMontagneStationSensorEntityDescription(
+        key="precipitations_24h",
+        translation_key="precipitations_24h",
+        device_class=SensorDeviceClass.PRECIPITATION,
+        native_unit_of_measurement=UnitOfPrecipitationDepth.MILLIMETERS,
+        state_class=SensorStateClass.MEASUREMENT,
+        value_fn=lambda observation: observation.get("precipitations_24h"),
+    ),
+    MeteoFranceMontagneStationSensorEntityDescription(
+        key="temps_observe",
+        translation_key="temps_observe",
+        icon="mdi:weather-partly-snowy",
+        value_fn=_temps_observe,
+        attrs_fn=lambda observation: {
+            "code_temps_present": observation.get("temps_present"),
+            "nebulosite_octas": observation.get("nebulosite"),
+            "nebulosite_pct": _nebulosite_pct(observation),
+        },
+    ),
+    MeteoFranceMontagneStationSensorEntityDescription(
+        key="temperature_neige",
+        translation_key="temperature_neige",
+        icon="mdi:snowflake-thermometer",
+        device_class=SensorDeviceClass.TEMPERATURE,
+        native_unit_of_measurement=UnitOfTemperature.CELSIUS,
+        state_class=SensorStateClass.MEASUREMENT,
+        # At the surface of the snow
+        value_fn=lambda observation: observation.get("temperature_neige"),
+    ),
+    MeteoFranceMontagneStationSensorEntityDescription(
+        key="vent",
+        translation_key="vent",
+        device_class=SensorDeviceClass.WIND_SPEED,
+        native_unit_of_measurement=UnitOfSpeed.METERS_PER_SECOND,
+        suggested_unit_of_measurement=UnitOfSpeed.KILOMETERS_PER_HOUR,
+        state_class=SensorStateClass.MEASUREMENT,
+        value_fn=lambda observation: observation.get("vent_force"),
+        attrs_fn=lambda observation: {
+            "direction": observation.get("vent_direction"),
+            "vent_altitude_force_ms": observation.get("vent_altitude_force"),
+            "vent_altitude_direction": observation.get("vent_altitude_direction"),
+            "chasse_neige": BLOWING_SNOW.get(observation.get("chasse_neige")),
+        },
+    ),
+    MeteoFranceMontagneStationSensorEntityDescription(
+        key="neige_surface",
+        translation_key="neige_surface",
+        icon="mdi:snowflake-variant",
+        value_fn=lambda observation: SNOW_GRAINS.get(observation.get("grain_surface")),
+        attrs_fn=lambda observation: {
+            # Between the surface and 10 cm below
+            "grains_sous_surface": SNOW_GRAINS.get(observation.get("grain_sous_surface")),
+            "masse_volumique_kg_m3": observation.get("masse_volumique"),
+        },
+    ),
+    MeteoFranceMontagneStationSensorEntityDescription(
+        key="risque_observe",
+        translation_key="risque_observe",
+        icon="mdi:alert",
+        device_class=SensorDeviceClass.ENUM,
+        options=AVALANCHE_RISK_LEVELS,
+        # Estimated by the observer, not the risk of the bulletin
+        value_fn=lambda observation: _risk_level(observation.get("risque")),
+        picture_fn=lambda observation: (
+            _risk_picture(observation.get("risque"))
+            if _risk_level(observation.get("risque"))
+            else None
+        ),
+    ),
+)
+
+
 async def async_setup_entry(
     hass: HomeAssistant,
     entry: MeteoFranceMontagneConfigEntry,
     async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
     """Set up the Météo-France Montagne sensors."""
-    for subentry_id, coordinator in entry.runtime_data.items():
+    for subentry_id, coordinator in entry.runtime_data.massifs.items():
         async_add_entities(
             [
                 MeteoFranceMontagneSensor(coordinator, description)
                 for description in SENSOR_TYPES
+            ],
+            config_subentry_id=subentry_id,
+        )
+
+    if (observations := entry.runtime_data.observations) is None:
+        return
+    for subentry_id, coordinator in entry.runtime_data.massifs.items():
+        stations = entry.subentries[subentry_id].data.get(CONF_STATIONS, {})
+        async_add_entities(
+            [
+                MeteoFranceMontagneStationSensor(
+                    observations, station_id, name, coordinator.massif_id, description
+                )
+                for station_id, name in stations.items()
+                for description in STATION_SENSOR_TYPES
             ],
             config_subentry_id=subentry_id,
         )
@@ -595,3 +768,46 @@ class MeteoFranceMontagneSensor(MeteoFranceMontagneEntity, SensorEntity):
         if (data := self._bulletin) is None:
             return {}
         return self.entity_description.attrs_fn(data)
+
+
+class MeteoFranceMontagneStationSensor(MeteoFranceMontagneStationEntity, SensorEntity):
+    """Sensor of an observation station."""
+
+    entity_description: MeteoFranceMontagneStationSensorEntityDescription
+
+    def __init__(
+        self,
+        coordinator: MeteoFranceNivoDataUpdateCoordinator,
+        station_id: str,
+        station_name: str,
+        massif_id: int,
+        description: MeteoFranceMontagneStationSensorEntityDescription,
+    ) -> None:
+        """Initialize the sensor."""
+        super().__init__(coordinator, station_id, station_name, massif_id, description.key)
+        self.entity_description = description
+
+    @property
+    def native_value(self) -> StateType:
+        """Return the state of the sensor."""
+        if (observation := self.observation) is None:
+            return None
+        return self.entity_description.value_fn(observation)
+
+    @property
+    def entity_picture(self) -> str | None:
+        """Return the entity picture."""
+        if (observation := self.observation) is None:
+            return None
+        return self.entity_description.picture_fn(observation)
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """Return the state attributes."""
+        if (last := self.last_observation) is None:
+            return {}
+        # The date tells why a station that stopped observing is unknown
+        attrs = {"date_observation": last.get("date"), "altitude_m": last.get("altitude")}
+        if (observation := self.observation) is not None:
+            attrs.update(self.entity_description.attrs_fn(observation))
+        return attrs

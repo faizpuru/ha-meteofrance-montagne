@@ -36,6 +36,13 @@
                 "data": {
                     "token": "API Token"
                 }
+            },
+            "stations": {
+                "title": "Observation Stations",
+                "description": "Check the stations of the nivo-meteorological network to follow in the {massif} mountain range, or none. Their observers, often the ski patrollers of a resort, record every morning the snow depth, the fresh snow, the temperatures and the snow type, and estimate the avalanche risk. The observations are published the next morning.\n\nYou can change this choice by reconfiguring the mountain range.",
+                "data": {
+                    "stations": "Stations"
+                }
             }
         },
         "error": {
@@ -55,7 +62,8 @@
         "massif": {
             "entry_type": "Mountain range",
             "initiate_flow": {
-                "user": "Add mountain range"
+                "user": "Add mountain range",
+                "reconfigure": "Change stations"
             },
             "step": {
                 "department": {
@@ -71,12 +79,28 @@
                     "data": {
                         "massif": "Mountain Range"
                     }
+                },
+                "stations": {
+                    "title": "Observation Stations",
+                    "description": "Check the stations of the nivo-meteorological network to follow in the {massif} mountain range, or none. Their observers, often the ski patrollers of a resort, record every morning the snow depth, the fresh snow, the temperatures and the snow type, and estimate the avalanche risk. The observations are published the next morning.\n\nYou can change this choice by reconfiguring the mountain range.",
+                    "data": {
+                        "stations": "Stations"
+                    }
+                },
+                "reconfigure": {
+                    "title": "Observation Stations",
+                    "description": "Check the stations of the nivo-meteorological network to follow in the {massif} mountain range. The observations are published the next morning.\n\nThe entities of an unchecked station are deleted.",
+                    "data": {
+                        "stations": "Stations"
+                    }
                 }
             },
             "abort": {
                 "already_configured": "This mountain range is already configured in Home Assistant. You cannot add it twice.",
-                "cannot_connect": "Unable to fetch the mountain range list from the Météo-France API. Try again later.",
-                "invalid_auth": "The API token is not valid. Make sure you copied the complete token from the Météo-France portal."
+                "cannot_connect": "Unable to fetch the mountain range or station list from Météo-France. Try again later.",
+                "invalid_auth": "The API token is not valid. Make sure you copied the complete token from the Météo-France portal.",
+                "no_station": "No station of the nivo-meteorological network observes in the {massif} mountain range.",
+                "reconfigure_successful": "The stations of the mountain range have been updated."
             }
         }
     },
@@ -139,6 +163,43 @@
             },
             "qualite_neige": {
                 "name": "Snow quality"
+            },
+            "hauteur_neige": {
+                "name": "Snow depth"
+            },
+            "neige_fraiche_24h": {
+                "name": "Fresh snow 24 h"
+            },
+            "temperature": {
+                "name": "Temperature"
+            },
+            "temperature_neige": {
+                "name": "Snow surface temperature"
+            },
+            "vent": {
+                "name": "Wind"
+            },
+            "neige_surface": {
+                "name": "Surface snow"
+            },
+            "risque_observe": {
+                "name": "Observed avalanche risk",
+                "state": {
+                    "1": "Low",
+                    "2": "Moderate",
+                    "3": "Considerable",
+                    "4": "High",
+                    "5": "Very high"
+                }
+            },
+            "humidite": {
+                "name": "Humidity"
+            },
+            "precipitations_24h": {
+                "name": "Precipitation 24 h"
+            },
+            "temps_observe": {
+                "name": "Observed weather"
             }
         },
         "image": {

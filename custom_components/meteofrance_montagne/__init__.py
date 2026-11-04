@@ -1,5 +1,6 @@
 """The Météo-France Montagne integration."""
 import asyncio
+from dataclasses import dataclass
 import logging
 
 from pathlib import Path
@@ -10,20 +11,24 @@ from homeassistant.config_entries import ConfigEntry, ConfigSubentry
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryNotReady
-from homeassistant.helpers import entity_registry as er
+from homeassistant.helpers import device_registry as dr, entity_registry as er
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 import homeassistant.helpers.config_validation as cv
 
 from .const import (
     CONF_MASSIF,
     CONF_MASSIF_NAME,
+    CONF_STATIONS,
     CONF_TOKEN,
     DOMAIN,
     NAME,
     RESOURCES_URL,
     SUBENTRY_TYPE_MASSIF,
 )
-from .coordinator import MeteoFranceMontagneDataUpdateCoordinator
+from .coordinator import (
+    MeteoFranceMontagneDataUpdateCoordinator,
+    MeteoFranceNivoDataUpdateCoordinator,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -31,10 +36,18 @@ PLATFORMS = [Platform.BINARY_SENSOR, Platform.IMAGE, Platform.SENSOR]
 
 CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
 
-# One coordinator per massif, keyed by subentry id
-type MeteoFranceMontagneConfigEntry = ConfigEntry[
-    dict[str, MeteoFranceMontagneDataUpdateCoordinator]
-]
+
+@dataclass
+class MeteoFranceMontagneData:
+    """Coordinators of the config entry."""
+
+    # One coordinator per massif, keyed by subentry id
+    massifs: dict[str, MeteoFranceMontagneDataUpdateCoordinator]
+    # A single one for the stations of all the massifs, None without station
+    observations: MeteoFranceNivoDataUpdateCoordinator | None
+
+
+type MeteoFranceMontagneConfigEntry = ConfigEntry[MeteoFranceMontagneData]
 
 
 async def async_setup(hass: HomeAssistant, config: dict) -> bool:
@@ -57,7 +70,7 @@ async def async_setup_entry(
     """Set up Météo-France Montagne from a config entry."""
     session = async_get_clientsession(hass)
 
-    coordinators = {}
+    massifs = {}
     for subentry in entry.subentries.values():
         if subentry.subentry_type != SUBENTRY_TYPE_MASSIF:
             continue
@@ -69,7 +82,19 @@ async def async_setup_entry(
             subentry.data[CONF_MASSIF_NAME],
             entry.data[CONF_TOKEN],
         )
-        coordinators[subentry.subentry_id] = coordinator
+        massifs[subentry.subentry_id] = coordinator
+
+    observations = None
+    if _station_ids(entry):
+        observations = MeteoFranceNivoDataUpdateCoordinator(hass, entry, session)
+    _async_remove_unchecked_stations(hass, entry)
+
+    coordinators = {
+        f"Massif {coordinator.massif_name}": coordinator
+        for coordinator in massifs.values()
+    }
+    if observations:
+        coordinators["Station observations"] = observations
 
     results = await asyncio.gather(
         *(
@@ -79,8 +104,8 @@ async def async_setup_entry(
         return_exceptions=True,
     )
     errors = {
-        coordinator.massif_name: result
-        for coordinator, result in zip(coordinators.values(), results)
+        name: result
+        for name, result in zip(coordinators, results)
         if isinstance(result, Exception)
     }
     for error in errors.values():
@@ -90,19 +115,47 @@ async def async_setup_entry(
     if coordinators and len(errors) == len(coordinators):
         raise next(iter(errors.values()))
 
-    # A failing massif does not block the others: its entities stay
+    # A failing coordinator does not block the others: its entities stay
     # unavailable until one of its next hourly refreshes succeeds
-    for massif_name, error in errors.items():
-        _LOGGER.warning("Massif %s is not available yet: %s", massif_name, error)
+    for name, error in errors.items():
+        _LOGGER.warning("%s is not available yet: %s", name, error)
 
-    entry.runtime_data = coordinators
+    entry.runtime_data = MeteoFranceMontagneData(massifs, observations)
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
-    # Reload when a massif is added or removed
+    # Reload when a massif is added, removed or gets other stations
     entry.async_on_unload(entry.add_update_listener(async_update_listener))
 
     return True
+
+
+def _station_ids(entry: MeteoFranceMontagneConfigEntry) -> set[str]:
+    """Return the ids of the stations checked in the massifs."""
+    return {
+        station_id
+        for subentry in entry.subentries.values()
+        if subentry.subentry_type == SUBENTRY_TYPE_MASSIF
+        for station_id in subentry.data.get(CONF_STATIONS, {})
+    }
+
+
+def _async_remove_unchecked_stations(
+    hass: HomeAssistant, entry: MeteoFranceMontagneConfigEntry
+) -> None:
+    """Remove the devices, and their entities, of the stations unchecked."""
+    identifiers = {f"station_{station_id}" for station_id in _station_ids(entry)}
+    device_registry = dr.async_get(hass)
+    for device in dr.async_entries_for_config_entry(device_registry, entry.entry_id):
+        if any(
+            domain == DOMAIN
+            and identifier.startswith("station_")
+            and identifier not in identifiers
+            for domain, identifier in device.identifiers
+        ):
+            device_registry.async_update_device(
+                device.id, remove_config_entry_id=entry.entry_id
+            )
 
 
 async def async_unload_entry(

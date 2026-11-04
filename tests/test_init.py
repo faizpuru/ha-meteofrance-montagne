@@ -131,7 +131,7 @@ async def test_off_season(hass: HomeAssistant, config_entry, mock_call_api):
     await setup_entry(hass, config_entry)
     assert config_entry.state is ConfigEntryState.LOADED
 
-    coordinator = next(iter(config_entry.runtime_data.values()))
+    coordinator = next(iter(config_entry.runtime_data.massifs.values()))
     assert coordinator.data["hors_saison"] is True
     assert coordinator.update_interval == timedelta(hours=OFF_SEASON_UPDATE_INTERVAL)
 

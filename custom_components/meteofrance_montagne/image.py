@@ -20,7 +20,7 @@ async def async_setup_entry(
     async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
     """Set up the Météo-France Montagne image platform."""
-    for subentry_id, coordinator in entry.runtime_data.items():
+    for subentry_id, coordinator in entry.runtime_data.massifs.items():
         async_add_entities(
             [
                 MeteoFranceMontagneImage(coordinator, image_type)

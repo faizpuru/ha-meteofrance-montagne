@@ -13,6 +13,7 @@ from custom_components.meteofrance_montagne.api import (
 from custom_components.meteofrance_montagne.const import (
     CONF_MASSIF,
     CONF_MASSIF_NAME,
+    CONF_STATIONS,
     CONF_TOKEN,
     DOMAIN,
     NAME,
@@ -21,7 +22,7 @@ from custom_components.meteofrance_montagne.const import (
 
 from .conftest import MASSIF_ID, MASSIF_NAME, TOKEN
 
-pytestmark = pytest.mark.usefixtures("mock_call_api")
+pytestmark = pytest.mark.usefixtures("mock_call_api", "mock_nivo")
 
 
 @pytest.fixture(autouse=True)
@@ -64,7 +65,11 @@ async def test_user_flow(hass: HomeAssistant):
     assert subentry.subentry_type == SUBENTRY_TYPE_MASSIF
     assert subentry.title == f"Ariege - {MASSIF_NAME}"
     assert subentry.unique_id == str(MASSIF_ID)
-    assert dict(subentry.data) == {CONF_MASSIF: MASSIF_ID, CONF_MASSIF_NAME: MASSIF_NAME}
+    assert dict(subentry.data) == {
+        CONF_MASSIF: MASSIF_ID,
+        CONF_MASSIF_NAME: MASSIF_NAME,
+        CONF_STATIONS: {},
+    }
 
 
 @pytest.mark.parametrize(
@@ -128,7 +133,11 @@ async def test_add_massif(hass: HomeAssistant, config_entry):
         sub for sub in config_entry.subentries.values() if sub.unique_id == "19"
     )
     assert subentry.title == "Hautes-Alpes - Champsaur"
-    assert dict(subentry.data) == {CONF_MASSIF: 19, CONF_MASSIF_NAME: "Champsaur"}
+    assert dict(subentry.data) == {
+        CONF_MASSIF: 19,
+        CONF_MASSIF_NAME: "Champsaur",
+        CONF_STATIONS: {},
+    }
 
 
 async def test_add_massif_already_configured(hass: HomeAssistant, config_entry):

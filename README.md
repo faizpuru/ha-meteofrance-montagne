@@ -22,6 +22,7 @@ Intégration Home Assistant pour consulter les **Bulletins d'estimation du Risqu
 - 🌤️ **Météo montagne** : Prévisions avec températures, vent et temps sensible
 - 🧊 **Qualité de la neige** : Description de l'état du manteau neigeux
 - 🖼️ **6 images PNG** : Rose des pentes, risques, enneigement, graphiques, météo
+- 📍 **Observations terrain** : Relevés quotidiens des stations du réseau nivo-météorologique (hauteur de neige, neige fraîche, températures, type de neige, risque estimé par l'observateur)
 
 ## 📦 Installation
 
@@ -59,6 +60,7 @@ Intégration Home Assistant pour consulter les **Bulletins d'estimation du Risqu
 3. Recherchez **"Météo-France Montagne"**
 4. Entrez votre **token API Météo-France**
 5. Sélectionnez le **département** puis le **massif** à surveiller
+6. Cochez si vous le souhaitez des **stations d'observation** du massif
 
 Chaque massif apparaît comme un appareil qui regroupe ses 20 entités.
 
@@ -67,8 +69,20 @@ Chaque massif apparaît comme un appareil qui regroupe ses 20 entités.
 1. Allez dans **Paramètres > Appareils et Services > Météo-France Montagne**
 2. Cliquez sur **"Ajouter un massif"**
 3. Sélectionnez un département puis un massif
+4. Cochez si vous le souhaitez des stations d'observation du massif
 
 Pour retirer un massif, supprimez-le depuis la même page : ses entités sont supprimées avec lui.
+
+### Stations d'observation
+
+Les stations sont celles du réseau nivo-météorologique de Météo-France, tenues le plus souvent par les pisteurs des stations de ski. À l'ajout d'un massif, l'intégration propose de cocher celles qui s'y trouvent, avec leur altitude. Le massif de Chartreuse n'en a pas.
+
+Pour changer les stations d'un massif déjà configuré :
+1. Allez dans **Paramètres > Appareils et Services > Météo-France Montagne**
+2. Dans le menu du massif, cliquez sur **"Modifier les stations"**
+3. Cochez ou décochez les stations : celles décochées sont supprimées avec leurs entités
+
+Chaque station apparaît comme un appareil, rattaché à celui du massif, qui regroupe ses 10 sensors. Les observations viennent d'un [fichier public](https://www.data.gouv.fr/datasets/archive-reseau-nivo-meteorologique) qui ne demande pas de token.
 
 ### Modifier le token API
 
@@ -247,6 +261,31 @@ Six images PNG actualisées quotidiennement :
 - `image.{massif}_apercu_meteo` : Aperçu météo montagne
 - `image.{massif}_sept_derniers_jours` : Synthèse 7 derniers jours
 
+### 📍 Stations d'observation
+
+Pour chaque station cochée, l'intégration crée **10 sensors** à partir de sa dernière observation.
+
+Les observateurs relèvent la station chaque matin, parfois une seconde fois vers midi, et Météo-France publie les relevés le lendemain matin. Une station qui n'a rien relevé depuis 3 jours, hors saison notamment, garde ses sensors sans valeur.
+
+Tous les sensors ont les attributs :
+- `date_observation` : Date de la dernière observation (UTC)
+- `altitude_m` : Altitude de la station
+
+| Sensor | État | Attributs |
+|---|---|---|
+| `sensor.{station}_hauteur_de_neige` | Hauteur de neige au sol (cm) | `hauteur_neige_altitude_cm` : estimation de l'observateur plus haut |
+| `sensor.{station}_neige_fraiche_24_h` | Neige fraîche tombée en 24 h, mesurée le matin (cm) | `neige_fraiche_altitude_cm` : estimation de l'observateur plus haut |
+| `sensor.{station}_temps_observe` | Phénomène en cours (Neige modérée, Brouillard…), sinon état du ciel (Ciel clair, Nuageux, Couvert…) | `code_temps_present` (code OMM), `nebulosite_octas`, `nebulosite_pct` |
+| `sensor.{station}_precipitations_24_h` | Précipitations tombées en 24 h, pluie et neige fondue (mm) | |
+| `sensor.{station}_temperature` | Température de l'air (°C) | `temperature_min_24h`, `temperature_max_24h` |
+| `sensor.{station}_humidite` | Humidité relative (%) | `point_rosee` (°C) |
+| `sensor.{station}_temperature_de_surface_de_la_neige` | Température de surface de la neige (°C) | |
+| `sensor.{station}_vent` | Vent observé à la station | `direction` (degrés), `vent_altitude_force_ms`, `vent_altitude_direction`, `chasse_neige` |
+| `sensor.{station}_neige_en_surface` | Type de grains en surface (Neige fraîche, Grains fins, Croûtes…) | `grains_sous_surface` (jusqu'à −10 cm), `masse_volumique_kg_m3` |
+| `sensor.{station}_risque_avalanche_observe` | Risque estimé par l'observateur, de `1` à `5` | |
+
+Une valeur que l'observateur n'a pas relevée reste vide. Le risque observé est l'avis de l'observateur sur place, pas celui du bulletin.
+
 > Les identifiants ci-dessus sont ceux d'une installation en français. Les installations existantes gardent leurs identifiants.
 
 ## 🤖 Exemples d'automatisations
@@ -340,6 +379,7 @@ Météo-France ne publie les bulletins que de début novembre à fin mai. Hors s
 ## 📚 Ressources
 
 - [Documentation API Météo-France](https://portail-api.meteofrance.fr/web/fr/api/DonneesPubliquesBRA)
+- [Archive réseau nivo-météorologique](https://www.data.gouv.fr/datasets/archive-reseau-nivo-meteorologique) : observations des stations et description des paramètres
 
 ## 🤝 Contribution
 

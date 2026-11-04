@@ -36,6 +36,13 @@
                 "data": {
                     "token": "Jeton d'API"
                 }
+            },
+            "stations": {
+                "title": "Stations d'observation",
+                "description": "Cochez les stations du réseau nivo-météorologique à suivre dans le massif {massif}, ou aucune. Leurs observateurs, souvent les pisteurs d'une station de ski, relèvent chaque matin la hauteur de neige, la neige fraîche, les températures et le type de neige, et estiment le risque d'avalanche. Les observations sont publiées le lendemain matin.\n\nVous pourrez changer ce choix en reconfigurant le massif.",
+                "data": {
+                    "stations": "Stations"
+                }
             }
         },
         "error": {
@@ -55,7 +62,8 @@
         "massif": {
             "entry_type": "Massif",
             "initiate_flow": {
-                "user": "Ajouter un massif"
+                "user": "Ajouter un massif",
+                "reconfigure": "Modifier les stations"
             },
             "step": {
                 "department": {
@@ -71,12 +79,28 @@
                     "data": {
                         "massif": "Massif"
                     }
+                },
+                "stations": {
+                    "title": "Stations d'observation",
+                    "description": "Cochez les stations du réseau nivo-météorologique à suivre dans le massif {massif}, ou aucune. Leurs observateurs, souvent les pisteurs d'une station de ski, relèvent chaque matin la hauteur de neige, la neige fraîche, les températures et le type de neige, et estiment le risque d'avalanche. Les observations sont publiées le lendemain matin.\n\nVous pourrez changer ce choix en reconfigurant le massif.",
+                    "data": {
+                        "stations": "Stations"
+                    }
+                },
+                "reconfigure": {
+                    "title": "Stations d'observation",
+                    "description": "Cochez les stations du réseau nivo-météorologique à suivre dans le massif {massif}. Les observations sont publiées le lendemain matin.\n\nLes entités d'une station décochée sont supprimées.",
+                    "data": {
+                        "stations": "Stations"
+                    }
                 }
             },
             "abort": {
                 "already_configured": "Ce massif est déjà configuré dans Home Assistant. Vous ne pouvez pas l'ajouter deux fois.",
-                "cannot_connect": "Impossible de récupérer la liste des massifs auprès de l'API Météo-France. Réessayez plus tard.",
-                "invalid_auth": "Le jeton d'API n'est pas valide. Vérifiez que vous avez bien copié le jeton complet depuis le portail Météo-France."
+                "cannot_connect": "Impossible de récupérer la liste des massifs ou des stations auprès de Météo-France. Réessayez plus tard.",
+                "invalid_auth": "Le jeton d'API n'est pas valide. Vérifiez que vous avez bien copié le jeton complet depuis le portail Météo-France.",
+                "no_station": "Aucune station du réseau nivo-météorologique n'observe dans le massif {massif}.",
+                "reconfigure_successful": "Les stations du massif ont été mises à jour."
             }
         }
     },
@@ -139,6 +163,43 @@
             },
             "qualite_neige": {
                 "name": "Qualité de la neige"
+            },
+            "hauteur_neige": {
+                "name": "Hauteur de neige"
+            },
+            "neige_fraiche_24h": {
+                "name": "Neige fraîche 24 h"
+            },
+            "temperature": {
+                "name": "Température"
+            },
+            "temperature_neige": {
+                "name": "Température de surface de la neige"
+            },
+            "vent": {
+                "name": "Vent"
+            },
+            "neige_surface": {
+                "name": "Neige en surface"
+            },
+            "risque_observe": {
+                "name": "Risque avalanche observé",
+                "state": {
+                    "1": "Faible",
+                    "2": "Limité",
+                    "3": "Marqué",
+                    "4": "Fort",
+                    "5": "Très fort"
+                }
+            },
+            "humidite": {
+                "name": "Humidité"
+            },
+            "precipitations_24h": {
+                "name": "Précipitations 24 h"
+            },
+            "temps_observe": {
+                "name": "Temps observé"
             }
         },
         "image": {
