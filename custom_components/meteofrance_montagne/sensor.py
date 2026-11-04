@@ -23,6 +23,7 @@ from homeassistant.const import (
     UnitOfTemperature,
 )
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from homeassistant.helpers.typing import StateType
 from homeassistant.util import dt as dt_util
@@ -46,7 +47,12 @@ from .coordinator import (
     MeteoFranceNivoDataUpdateCoordinator,
     parse_bulletin_time,
 )
-from .entity import MeteoFranceMontagneEntity, MeteoFranceMontagneStationEntity
+from .entity import (
+    MeteoFranceMontagneEntity,
+    MeteoFranceMontagneStationEntity,
+    massif_device_info,
+    station_device_info,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -698,12 +704,29 @@ async def async_setup_entry(
 
     if (observations := entry.runtime_data.observations) is None:
         return
+    device_registry = dr.async_get(hass)
     for subentry_id, coordinator in entry.runtime_data.massifs.items():
         stations = entry.subentries[subentry_id].data.get(CONF_STATIONS, {})
+        if not stations:
+            continue
+        # Link the stations to their massif by device id: the via_device of
+        # DeviceInfo is deprecated, and via_device_id requires HA 2026.8
+        massif = device_registry.async_get_or_create(
+            config_entry_id=entry.entry_id,
+            config_subentry_id=subentry_id,
+            **massif_device_info(coordinator.massif_id, coordinator.massif_name),
+        )
+        for station_id, name in stations.items():
+            station = device_registry.async_get_or_create(
+                config_entry_id=entry.entry_id,
+                config_subentry_id=subentry_id,
+                **station_device_info(station_id, name),
+            )
+            device_registry.async_update_device(station.id, via_device_id=massif.id)
         async_add_entities(
             [
                 MeteoFranceMontagneStationSensor(
-                    observations, station_id, name, coordinator.massif_id, description
+                    observations, station_id, name, description
                 )
                 for station_id, name in stations.items()
                 for description in STATION_SENSOR_TYPES
@@ -780,11 +803,10 @@ class MeteoFranceMontagneStationSensor(MeteoFranceMontagneStationEntity, SensorE
         coordinator: MeteoFranceNivoDataUpdateCoordinator,
         station_id: str,
         station_name: str,
-        massif_id: int,
         description: MeteoFranceMontagneStationSensorEntityDescription,
     ) -> None:
         """Initialize the sensor."""
-        super().__init__(coordinator, station_id, station_name, massif_id, description.key)
+        super().__init__(coordinator, station_id, station_name, description.key)
         self.entity_description = description
 
     @property

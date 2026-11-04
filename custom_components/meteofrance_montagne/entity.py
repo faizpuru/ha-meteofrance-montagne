@@ -14,6 +14,27 @@ from .coordinator import (
 )
 
 
+def massif_device_info(massif_id: int, massif_name: str) -> DeviceInfo:
+    """Return the device info of a massif."""
+    return DeviceInfo(
+        identifiers={(DOMAIN, str(massif_id))},
+        name=massif_name,
+        manufacturer="Météo-France",
+        entry_type=DeviceEntryType.SERVICE,
+    )
+
+
+def station_device_info(station_id: str, station_name: str) -> DeviceInfo:
+    """Return the device info of an observation station."""
+    return DeviceInfo(
+        identifiers={(DOMAIN, f"station_{station_id}")},
+        name=station_name,
+        manufacturer="Météo-France",
+        model="Station nivo-météorologique",
+        entry_type=DeviceEntryType.SERVICE,
+    )
+
+
 class MeteoFranceMontagneEntity(
     CoordinatorEntity[MeteoFranceMontagneDataUpdateCoordinator]
 ):
@@ -28,11 +49,8 @@ class MeteoFranceMontagneEntity(
         super().__init__(coordinator)
         # Massifs are unique across the integration (single config entry)
         self._attr_unique_id = f"{coordinator.massif_id}_{key}"
-        self._attr_device_info = DeviceInfo(
-            identifiers={(DOMAIN, str(coordinator.massif_id))},
-            name=coordinator.massif_name,
-            manufacturer="Météo-France",
-            entry_type=DeviceEntryType.SERVICE,
+        self._attr_device_info = massif_device_info(
+            coordinator.massif_id, coordinator.massif_name
         )
 
     @property
@@ -54,21 +72,13 @@ class MeteoFranceMontagneStationEntity(
         coordinator: MeteoFranceNivoDataUpdateCoordinator,
         station_id: str,
         station_name: str,
-        massif_id: int,
         key: str,
     ) -> None:
         """Initialize the entity."""
         super().__init__(coordinator)
         self._station_id = station_id
         self._attr_unique_id = f"station_{station_id}_{key}"
-        self._attr_device_info = DeviceInfo(
-            identifiers={(DOMAIN, f"station_{station_id}")},
-            name=station_name,
-            manufacturer="Météo-France",
-            model="Station nivo-météorologique",
-            entry_type=DeviceEntryType.SERVICE,
-            via_device=(DOMAIN, str(massif_id)),
-        )
+        self._attr_device_info = station_device_info(station_id, station_name)
 
     @property
     def observation(self) -> dict | None:
