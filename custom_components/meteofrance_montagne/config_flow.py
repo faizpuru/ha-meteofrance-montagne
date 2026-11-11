@@ -5,7 +5,6 @@ from collections.abc import Mapping
 import logging
 from typing import Any
 
-import voluptuous as vol
 from homeassistant.config_entries import (
     ConfigEntry,
     ConfigFlow,
@@ -14,6 +13,7 @@ from homeassistant.config_entries import (
     SubentryFlowResult,
 )
 from homeassistant.core import HomeAssistant, callback
+from homeassistant.data_entry_flow import FlowHandler, FlowResult
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.selector import (
     SelectOptionDict,
@@ -29,6 +29,7 @@ from meteofrance_montagne import (
     MeteoFranceNivoApi,
     in_massif,
 )
+
 from .const import (
     API_PORTAL_URL,
     CONF_MASSIF,
@@ -39,6 +40,11 @@ from .const import (
     NAME,
     SUBENTRY_TYPE_MASSIF,
 )
+
+try:
+    import probatio as vol
+except ImportError:  # Home Assistant < 2026.9
+    import voluptuous as vol  # type: ignore[no-redef]
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -103,7 +109,7 @@ def _station_names(
     return {station_id: stations[station_id]["nom"] for station_id in station_ids}
 
 
-class MassifSelectionMixin:
+class MassifSelectionMixin[_ResultT: FlowResult[Any, Any]](FlowHandler[Any, _ResultT, Any]):
     """Department, massif then stations selection, shared by the config and subentry flows."""
 
     _departments_data: dict[str, list[dict[str, Any]]]
@@ -122,11 +128,13 @@ class MassifSelectionMixin:
 
     async def _async_create_massif(
         self, massif: dict[str, Any], title: str, stations: dict[str, str]
-    ):
+    ) -> _ResultT:
         """Create the massif once selected, with its stations."""
         raise NotImplementedError
 
-    async def async_step_department(self, user_input: dict[str, Any] | None = None):
+    async def async_step_department(
+        self, user_input: dict[str, Any] | None = None
+    ) -> _ResultT:
         """Handle department selection."""
         if user_input is not None:
             self._selected_department = user_input["department"]
@@ -151,7 +159,9 @@ class MassifSelectionMixin:
             }),
         )
 
-    async def async_step_massif(self, user_input: dict[str, Any] | None = None):
+    async def async_step_massif(
+        self, user_input: dict[str, Any] | None = None
+    ) -> _ResultT:
         """Handle massif selection."""
         massifs = self._departments_data[self._selected_department]
 
@@ -175,7 +185,9 @@ class MassifSelectionMixin:
             }),
         )
 
-    async def async_step_stations(self, user_input: dict[str, Any] | None = None):
+    async def async_step_stations(
+        self, user_input: dict[str, Any] | None = None
+    ) -> _ResultT:
         """Handle the optional selection of observation stations."""
         if user_input is not None:
             return await self._async_create_massif(
@@ -209,7 +221,9 @@ def _massif_data(massif: dict[str, Any], stations: dict[str, str]) -> dict[str, 
     }
 
 
-class MeteoFranceMontagneConfigFlow(MassifSelectionMixin, ConfigFlow, domain=DOMAIN):
+class MeteoFranceMontagneConfigFlow(
+    MassifSelectionMixin[ConfigFlowResult], ConfigFlow, domain=DOMAIN
+):
     """Handle a config flow for Météo-France Montagne."""
 
     VERSION = 3
@@ -311,11 +325,14 @@ class MeteoFranceMontagneConfigFlow(MassifSelectionMixin, ConfigFlow, domain=DOM
         )
 
 
-class MassifSubentryFlowHandler(MassifSelectionMixin, ConfigSubentryFlow):
+class MassifSubentryFlowHandler(
+    MassifSelectionMixin[SubentryFlowResult], ConfigSubentryFlow
+):
     """Add a massif to the API entry."""
 
     def _get_token(self) -> str:
-        return self._get_entry().data[CONF_TOKEN]
+        token: str = self._get_entry().data[CONF_TOKEN]
+        return token
 
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None

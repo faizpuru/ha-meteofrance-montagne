@@ -5,6 +5,7 @@ import logging
 
 from pathlib import Path
 from types import MappingProxyType
+from typing import Any
 
 from homeassistant.components.http import StaticPathConfig
 from homeassistant.config_entries import ConfigEntry, ConfigSubentry
@@ -14,6 +15,8 @@ from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers import device_registry as dr, entity_registry as er
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 import homeassistant.helpers.config_validation as cv
+from homeassistant.helpers.typing import ConfigType
+from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
 from .const import (
     CONF_MASSIF,
@@ -50,7 +53,7 @@ class MeteoFranceMontagneData:
 type MeteoFranceMontagneConfigEntry = ConfigEntry[MeteoFranceMontagneData]
 
 
-async def async_setup(hass: HomeAssistant, config: dict) -> bool:
+async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     """Set up the Météo-France Montagne component."""
     should_cache = True
     files_path: Path = Path(__file__).parent / "resources"
@@ -89,7 +92,7 @@ async def async_setup_entry(
         observations = MeteoFranceNivoDataUpdateCoordinator(hass, entry, session)
     _async_remove_unchecked_stations(hass, entry)
 
-    coordinators = {
+    coordinators: dict[str, DataUpdateCoordinator[Any]] = {
         f"Massif {coordinator.massif_name}": coordinator
         for coordinator in massifs.values()
     }

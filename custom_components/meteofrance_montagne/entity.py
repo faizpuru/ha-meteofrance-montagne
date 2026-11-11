@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from datetime import timedelta
+from typing import Any
 
 from homeassistant.helpers.device_registry import DeviceEntryType, DeviceInfo
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
@@ -81,7 +82,7 @@ class MeteoFranceMontagneStationEntity(
         self._attr_device_info = station_device_info(station_id, station_name)
 
     @property
-    def observation(self) -> dict | None:
+    def observation(self) -> dict[str, Any] | None:
         """Return the last observation of the station, None when too old."""
         if (observation := self.last_observation) is None:
             return None
@@ -96,6 +97,6 @@ class MeteoFranceMontagneStationEntity(
         return observation
 
     @property
-    def last_observation(self) -> dict | None:
+    def last_observation(self) -> dict[str, Any] | None:
         """Return the last observation of the station, whatever its age."""
         return (self.coordinator.data or {}).get(self._station_id)
