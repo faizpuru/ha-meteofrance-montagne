@@ -1,8 +1,8 @@
 """Coordinator for fetching Météo-France Montagne data."""
 import asyncio
+from dataclasses import dataclass, field
 from datetime import timedelta, datetime
 import logging
-from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
@@ -11,12 +11,15 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, Upda
 from homeassistant.util import dt as dt_util
 import aiohttp
 from meteofrance_montagne import (
+    Bulletin,
     MeteoFranceMontagneApi,
     MeteoFranceMontagneApiError,
     MeteoFranceMontagneAuthError,
     MeteoFranceMontagneOffSeason,
     MeteoFranceNivoApi,
+    Observation,
 )
+
 from .const import (
     DOMAIN,
     IMAGE_TYPES,
@@ -36,7 +39,19 @@ def parse_bulletin_time(value: str) -> datetime:
     return dt_util.as_utc(parsed)
 
 
-class MeteoFranceMontagneDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
+@dataclass(frozen=True, slots=True)
+class MassifData:
+    """Bulletin of a massif and its images, or the reason why there is none."""
+
+    # None outside the season
+    bulletin: Bulletin | None
+    # PNG of each image type, None when not published
+    images: dict[str, bytes | None] = field(default_factory=dict)
+    # Message of Météo-France outside the season
+    message: str = ""
+
+
+class MeteoFranceMontagneDataUpdateCoordinator(DataUpdateCoordinator[MassifData]):
     """Class to coordinate data updates."""
 
     def __init__(
@@ -64,7 +79,7 @@ class MeteoFranceMontagneDataUpdateCoordinator(DataUpdateCoordinator[dict[str, A
             update_interval=timedelta(hours=UPDATE_INTERVAL),
         )
 
-    async def _async_update_data(self) -> dict[str, Any]:
+    async def _async_update_data(self) -> MassifData:
         """Fetch data from API."""
         try:
             data = await self._async_fetch()
@@ -84,7 +99,7 @@ class MeteoFranceMontagneDataUpdateCoordinator(DataUpdateCoordinator[dict[str, A
             self.update_interval = timedelta(hours=UPDATE_INTERVAL)
         return data
 
-    def _off_season_data(self, message: str) -> dict[str, Any]:
+    def _off_season_data(self, message: str) -> MassifData:
         """Return the data of a massif without bulletin, polled less often."""
         if self.update_interval != timedelta(hours=OFF_SEASON_UPDATE_INTERVAL):
             _LOGGER.info(
@@ -96,19 +111,15 @@ class MeteoFranceMontagneDataUpdateCoordinator(DataUpdateCoordinator[dict[str, A
         # Download the images again with the first bulletin of the season
         self.updated_at = None
         self._published = None
-        return {
-            "hors_saison": True,
-            "message": message,
-            "massif_name": self.massif_name,
-        }
+        return MassifData(bulletin=None, message=message)
 
-    async def _async_fetch(self) -> dict[str, Any]:
+    async def _async_fetch(self) -> MassifData:
         """Fetch the bulletin, and the images when a new bulletin is published."""
         bulletin = await self.api.bulletin(self.massif_id)
-        bulletin_date = bulletin["dateBulletin"]
+        bulletin_date = bulletin.date_bulletin
         bulletin_datetime = parse_bulletin_time(bulletin_date)
         # An amended bulletin may keep its writing time, not its diffusion time
-        published = (bulletin_datetime, bulletin["dateDiffusion"])
+        published = (bulletin_datetime, bulletin.date_diffusion)
 
         if self.data and published == self._published:
             _LOGGER.debug(
@@ -117,7 +128,7 @@ class MeteoFranceMontagneDataUpdateCoordinator(DataUpdateCoordinator[dict[str, A
                 self.massif_name
             )
             # Keep the images, the texts are taken from the bulletin just read
-            images = {image_type: self.data.get(image_type) for image_type in IMAGE_TYPES}
+            images = self.data.images
         else:
             _LOGGER.debug(
                 "New bulletin (old: %s, new: %s) for massif %s, downloading images",
@@ -136,24 +147,10 @@ class MeteoFranceMontagneDataUpdateCoordinator(DataUpdateCoordinator[dict[str, A
             self.updated_at = bulletin_datetime
             self._published = published
 
-        return {
-            "date": bulletin_date,
-            "date_validite": bulletin["dateValidite"],
-            "amendement": bulletin["amendement"],
-            "date_diffusion": bulletin["dateDiffusion"],
-            "attribution": bulletin["partenaires"],
-            "risque": bulletin["risque"],
-            "qualite": bulletin["qualite"],
-            "enneigement": bulletin["enneigement"],
-            "neige_fraiche": bulletin["neige_fraiche"],
-            "stabilite": bulletin["stabilite"],
-            "meteo": bulletin["meteo"],
-            "massif_name": self.massif_name,
-            **images
-        }
+        return MassifData(bulletin=bulletin, images=images)
 
 
-class MeteoFranceNivoDataUpdateCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
+class MeteoFranceNivoDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Observation]]):
     """Coordinate the observations of all the stations, read from the same file."""
 
     def __init__(
@@ -174,7 +171,7 @@ class MeteoFranceNivoDataUpdateCoordinator(DataUpdateCoordinator[dict[str, dict[
             update_interval=timedelta(hours=UPDATE_INTERVAL),
         )
 
-    async def _async_update_data(self) -> dict[str, dict[str, Any]]:
+    async def _async_update_data(self) -> dict[str, Observation]:
         """Fetch the last observation of each station."""
         now = dt_util.utcnow()
         # Early January, the last observations are still in the previous file
