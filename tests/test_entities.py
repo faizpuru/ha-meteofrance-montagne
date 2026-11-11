@@ -5,9 +5,9 @@ from homeassistant.const import ATTR_ATTRIBUTION, ATTR_UNIT_OF_MEASUREMENT, STAT
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import entity_registry as er
+from meteofrance_montagne import MeteoFranceMontagneOffSeason
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
-from custom_components.meteofrance_montagne.api import MeteoFranceMontagneOffSeason
 from custom_components.meteofrance_montagne.const import DOMAIN
 
 from .conftest import MASSIF_ID, PNG, load_resource

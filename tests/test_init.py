@@ -12,16 +12,16 @@ from homeassistant.const import STATE_UNAVAILABLE
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry as er
 from homeassistant.util import dt as dt_util
+from meteofrance_montagne import (
+    MeteoFranceMontagneApiError,
+    MeteoFranceMontagneAuthError,
+)
 from pytest_homeassistant_custom_component.common import (
     MockConfigEntry,
     async_fire_time_changed,
 )
 
 from custom_components.meteofrance_montagne import async_migrate_integration
-from custom_components.meteofrance_montagne.api import (
-    MeteoFranceMontagneApiError,
-    MeteoFranceMontagneAuthError,
-)
 from custom_components.meteofrance_montagne.const import (
     CONF_MASSIF,
     CONF_MASSIF_NAME,

@@ -19,19 +19,17 @@ from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType
 from homeassistant.helpers import device_registry as dr, entity_registry as er
 from homeassistant.util import dt as dt_util
+from meteofrance_montagne.const import NIVO_URL
 from pytest_homeassistant_custom_component.common import (
     MockConfigEntry,
     async_fire_time_changed,
 )
 
-from custom_components.meteofrance_montagne.api import parse_nivo_observations
-from custom_components.meteofrance_montagne.stations import station_name
 from custom_components.meteofrance_montagne.const import (
     CONF_MASSIF,
     CONF_MASSIF_NAME,
     CONF_STATIONS,
     DOMAIN,
-    NIVO_URL,
     SUBENTRY_TYPE_MASSIF,
     UPDATE_INTERVAL,
 )
@@ -62,61 +60,6 @@ def get_state(hass: HomeAssistant, key: str, station_id: str = STATION_ID):
         "sensor", DOMAIN, f"station_{station_id}_{key}"
     )
     return hass.states.get(entity_id) if entity_id else None
-
-
-def test_parse_two_observations_a_day():
-    """Complete the midday observation with the morning one."""
-    observation = parse_nivo_observations(nivo_file())[STATION_ID]
-
-    assert observation["nom"] == STATION_NAME
-    assert observation["altitude"] == 1854
-    # Midday observation
-    assert observation["date"] == "2026-02-12T12:02:00Z"
-    assert observation["hauteur_neige"] == 151
-    assert observation["temperature"] == -1.7
-    assert observation["grain_sous_surface"] == 9
-    # Only measured in the morning
-    assert observation["temperature_min_24h"] == -6.6
-    assert observation["temperature_max_24h"] == 0.9
-    # The morning board over 24h, not the midday one over 5h
-    assert observation["neige_fraiche_24h"] == 31
-    # Not observed over the last 24h
-    assert observation["chasse_neige"] is None
-    assert observation["temps_present"] == 73
-    assert observation["nebulosite"] == 8
-    assert observation["humidite"] == 95
-    assert observation["point_rosee"] == -2.4
-    # Over 24h, measured in the morning
-    assert observation["precipitations_24h"] == 24.0
-
-
-def test_parse_ignores_older_days():
-    """Leave out the values not measured over the last 24h."""
-    observation = parse_nivo_observations(nivo_file())["7393"]
-
-    assert observation["date"] == "2026-02-12T06:45:00Z"
-    assert observation["hauteur_neige"] == 120
-    # Measured two days before only
-    assert observation["neige_fraiche_24h"] is None
-    assert observation["risque"] is None
-
-
-@pytest.mark.parametrize(
-    ("station_id", "name", "expected"),
-    [
-        ("7931", "CEILLAC_NIVO", "Ceillac"),
-        ("7916", "ST FRANCOIS LONG", "Saint-François-Longchamp"),
-        # Unknown stations
-        ("1", "SUPER DEVOLUY_NIVO2", "Super Devoluy 2"),
-        ("2", "LA FOUX D ALLOS_NIVO", "La Foux d'Allos"),
-        ("3", "L Alpe d Huez 2350", "L'Alpe d'Huez 2350"),
-        ("4", "SERRE CHE-CHANTEMERLE_NIVO", "Serre Che-Chantemerle"),
-        ("5", "Les Gets", "Les Gets"),
-    ],
-)
-def test_station_name(station_id, name, expected):
-    """Give the usual name of a station, readable when unknown."""
-    assert station_name(station_id, name) == expected
 
 
 @pytest.mark.usefixtures("mock_nivo")

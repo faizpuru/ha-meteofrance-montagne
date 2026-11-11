@@ -22,8 +22,7 @@ from homeassistant.helpers.selector import (
     SelectSelectorMode,
 )
 from homeassistant.util import dt as dt_util
-
-from .api import (
+from meteofrance_montagne import (
     MeteoFranceMontagneApi,
     MeteoFranceMontagneApiError,
     MeteoFranceMontagneAuthError,
@@ -49,7 +48,7 @@ TOKEN_SCHEMA = vol.Schema({vol.Required(CONF_TOKEN): str})
 async def _async_validate_token(hass: HomeAssistant, token: str) -> dict[str, str]:
     """Validate the token with a test API call and return form errors."""
     session = async_get_clientsession(hass)
-    api = MeteoFranceMontagneApi(session, hass, token)
+    api = MeteoFranceMontagneApi(session, token)
     try:
         await api.rose_pentes(2)  # Test API call
     except MeteoFranceMontagneAuthError:
@@ -67,7 +66,7 @@ async def _async_massif_stations(
     hass: HomeAssistant, massif: dict[str, Any]
 ) -> dict[str, dict[str, Any]]:
     """Return the observation stations inside a massif."""
-    api = MeteoFranceNivoApi(async_get_clientsession(hass), hass)
+    api = MeteoFranceNivoApi(async_get_clientsession(hass))
     stations = await api.stations(dt_util.utcnow().year)
     return {
         station_id: station
@@ -135,7 +134,7 @@ class MassifSelectionMixin:
 
         try:
             session = async_get_clientsession(self.hass)
-            api = MeteoFranceMontagneApi(session, self.hass, self._get_token())
+            api = MeteoFranceMontagneApi(session, self._get_token())
             self._departments_data = await api.list_massif()
         except MeteoFranceMontagneAuthError:
             return self.async_abort(reason="invalid_auth")
@@ -357,7 +356,7 @@ class MassifSubentryFlowHandler(MassifSelectionMixin, ConfigSubentryFlow):
 
         # The geometry of the massif is not stored
         api = MeteoFranceMontagneApi(
-            async_get_clientsession(self.hass), self.hass, self._get_token()
+            async_get_clientsession(self.hass), self._get_token()
         )
         try:
             departments = await api.list_massif()
