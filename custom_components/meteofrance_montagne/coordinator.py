@@ -9,8 +9,7 @@ from homeassistant.exceptions import ConfigEntryAuthFailed
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from homeassistant.util import dt as dt_util
 import aiohttp
-
-from .api import (
+from meteofrance_montagne import (
     MeteoFranceMontagneApi,
     MeteoFranceMontagneApiError,
     MeteoFranceMontagneAuthError,
@@ -49,7 +48,7 @@ class MeteoFranceMontagneDataUpdateCoordinator(DataUpdateCoordinator):
         token: str
     ) -> None:
         """Initialize."""
-        self.api = MeteoFranceMontagneApi(session, hass, token)
+        self.api = MeteoFranceMontagneApi(session, token)
         self.massif_id = massif_id
         self.massif_name = massif_name
         self.updated_at = None
@@ -163,7 +162,7 @@ class MeteoFranceNivoDataUpdateCoordinator(DataUpdateCoordinator):
         session: aiohttp.ClientSession,
     ) -> None:
         """Initialize."""
-        self.api = MeteoFranceNivoApi(session, hass)
+        self.api = MeteoFranceNivoApi(session)
 
         super().__init__(
             hass,

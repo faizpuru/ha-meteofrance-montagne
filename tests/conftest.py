@@ -6,6 +6,7 @@ from pathlib import Path
 from unittest.mock import AsyncMock, patch
 
 import pytest
+from meteofrance_montagne.const import NIVO_URL
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.meteofrance_montagne.const import (
@@ -15,7 +16,6 @@ from custom_components.meteofrance_montagne.const import (
     CONF_TOKEN,
     DOMAIN,
     NAME,
-    NIVO_URL,
     SUBENTRY_TYPE_MASSIF,
 )
 
@@ -103,7 +103,7 @@ def mock_call_api(bulletin_xml: bytes) -> Generator[AsyncMock]:
         return PNG
 
     with patch(
-        "custom_components.meteofrance_montagne.api.MeteoFranceMontagneApi.call_api",
+        "meteofrance_montagne.MeteoFranceMontagneApi.call_api",
         AsyncMock(side_effect=call_api),
     ) as mock:
         yield mock

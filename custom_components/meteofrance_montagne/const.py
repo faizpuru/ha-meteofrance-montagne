@@ -1,6 +1,4 @@
 DOMAIN = "meteofrance_montagne"
-TIMEOUT = 5
-BASE_URL = "https://public-api.meteofrance.fr/public/DPBRA/v1"
 API_PORTAL_URL = "https://portail-api.meteofrance.fr/web/fr/api/DonneesPubliquesBRA"
 NAME = "Météo-France Montagne"
 ATTRIBUTION = "Données Météo-France"
@@ -16,10 +14,6 @@ UPDATE_INTERVAL = 1
 OFF_SEASON_UPDATE_INTERVAL = 6
 RESOURCES_URL = "/api/meteofrance_montagne/resources"
 
-# Observations of the nivo-meteorological network, one file per year rebuilt
-# every morning, published without key
-NIVO_URL = "https://meteofrance.s3.sbg.io.cloud.ovh.net/data/OBS/NIVOSE/nivo_{year}.csv.gz"
-NIVO_TIMEOUT = 30
 # Hours: the morning observation is published the next morning, older ones
 # come from a station that stopped observing
 OBSERVATION_MAX_AGE = 72
