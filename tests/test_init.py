@@ -132,7 +132,7 @@ async def test_off_season(hass: HomeAssistant, config_entry, mock_call_api):
     assert config_entry.state is ConfigEntryState.LOADED
 
     coordinator = next(iter(config_entry.runtime_data.massifs.values()))
-    assert coordinator.data["hors_saison"] is True
+    assert coordinator.data.bulletin is None
     assert coordinator.update_interval == timedelta(hours=OFF_SEASON_UPDATE_INTERVAL)
 
     entity_id = er.async_get(hass).async_get_entity_id(

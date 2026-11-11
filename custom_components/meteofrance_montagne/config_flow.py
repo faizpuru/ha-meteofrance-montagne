@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 import logging
-from typing import Any
+from typing import Any, NamedTuple
 
 from homeassistant.config_entries import (
     ConfigEntry,
@@ -23,6 +23,7 @@ from homeassistant.helpers.selector import (
 )
 from homeassistant.util import dt as dt_util
 from meteofrance_montagne import (
+    Massif,
     MeteoFranceMontagneApi,
     MeteoFranceMontagneApiError,
     MeteoFranceMontagneAuthError,
@@ -68,27 +69,36 @@ async def _async_validate_token(hass: HomeAssistant, token: str) -> dict[str, st
     return {}
 
 
+class _Station(NamedTuple):
+    """Observation station offered in the form."""
+
+    nom: str
+    altitude: int | None = None
+
+
 async def _async_massif_stations(
-    hass: HomeAssistant, massif: dict[str, Any]
-) -> dict[str, dict[str, Any]]:
+    hass: HomeAssistant, massif: Massif | None
+) -> dict[str, _Station]:
     """Return the observation stations inside a massif."""
+    if massif is None:
+        return {}
     api = MeteoFranceNivoApi(async_get_clientsession(hass))
     stations = await api.stations(dt_util.utcnow().year)
     return {
-        station_id: station
+        station_id: _Station(station.nom, station.altitude)
         for station_id, station in stations.items()
-        if in_massif(station["longitude"], station["latitude"], massif.get("geometry"))
+        if in_massif(station.longitude, station.latitude, massif.geometry)
     }
 
 
-def _stations_schema(stations: dict[str, dict[str, Any]]) -> vol.Schema:
+def _stations_schema(stations: dict[str, _Station]) -> vol.Schema:
     """Return the form checking the stations of a massif."""
     options = [
         SelectOptionDict(
             value=station_id,
-            label=f"{station['nom']} ({station['altitude']} m)"
-            if station.get("altitude") is not None
-            else station["nom"],
+            label=f"{station.nom} ({station.altitude} m)"
+            if station.altitude is not None
+            else station.nom,
         )
         for station_id, station in stations.items()
     ]
@@ -103,31 +113,31 @@ def _stations_schema(stations: dict[str, dict[str, Any]]) -> vol.Schema:
 
 
 def _station_names(
-    stations: dict[str, dict[str, Any]], station_ids: list[str]
+    stations: dict[str, _Station], station_ids: list[str]
 ) -> dict[str, str]:
     """Return the names of the checked stations, keyed by station id."""
-    return {station_id: stations[station_id]["nom"] for station_id in station_ids}
+    return {station_id: stations[station_id].nom for station_id in station_ids}
 
 
 class MassifSelectionMixin[_ResultT: FlowResult[Any, Any]](FlowHandler[Any, _ResultT, Any]):
     """Department, massif then stations selection, shared by the config and subentry flows."""
 
-    _departments_data: dict[str, list[dict[str, Any]]]
+    _departments_data: dict[str, list[Massif]]
     _selected_department: str
-    _massif: dict[str, Any]
+    _massif: Massif
     _title: str
-    _stations: dict[str, dict[str, Any]]
+    _stations: dict[str, _Station]
 
     def _get_token(self) -> str:
         """Return the API token used to list the massifs."""
         raise NotImplementedError
 
-    def _is_configured(self, massif: dict[str, Any]) -> bool:
+    def _is_configured(self, massif: Massif) -> bool:
         """Return whether the massif is already configured."""
         return False
 
     async def _async_create_massif(
-        self, massif: dict[str, Any], title: str, stations: dict[str, str]
+        self, massif: Massif, title: str, stations: dict[str, str]
     ) -> _ResultT:
         """Create the massif once selected, with its stations."""
         raise NotImplementedError
@@ -168,19 +178,19 @@ class MassifSelectionMixin[_ResultT: FlowResult[Any, Any]](FlowHandler[Any, _Res
         if user_input is not None:
             massif = next(
                 massif for massif in massifs
-                if massif["title"] == user_input["massif"]
+                if massif.nom == user_input["massif"]
             )
             if self._is_configured(massif):
                 return self.async_abort(reason="already_configured")
             self._massif = massif
-            self._title = f"{self._selected_department} - {massif['title']}"
+            self._title = f"{self._selected_department} - {massif.nom}"
             return await self.async_step_stations()
 
         return self.async_show_form(
             step_id="massif",
             data_schema=vol.Schema({
                 vol.Required("massif"): vol.In(
-                    sorted(massif["title"] for massif in massifs)
+                    sorted(massif.nom for massif in massifs)
                 )
             }),
         )
@@ -208,15 +218,15 @@ class MassifSelectionMixin[_ResultT: FlowResult[Any, Any]](FlowHandler[Any, _Res
         return self.async_show_form(
             step_id="stations",
             data_schema=_stations_schema(self._stations),
-            description_placeholders={"massif": self._massif["title"]},
+            description_placeholders={"massif": self._massif.nom},
         )
 
 
-def _massif_data(massif: dict[str, Any], stations: dict[str, str]) -> dict[str, Any]:
+def _massif_data(massif: Massif, stations: dict[str, str]) -> dict[str, Any]:
     """Return the subentry data of a massif."""
     return {
-        CONF_MASSIF: massif["code"],
-        CONF_MASSIF_NAME: massif["title"],
+        CONF_MASSIF: massif.code,
+        CONF_MASSIF_NAME: massif.nom,
         CONF_STATIONS: stations,
     }
 
@@ -264,7 +274,7 @@ class MeteoFranceMontagneConfigFlow(
         )
 
     async def _async_create_massif(
-        self, massif: dict[str, Any], title: str, stations: dict[str, str]
+        self, massif: Massif, title: str, stations: dict[str, str]
     ) -> ConfigFlowResult:
         return self.async_create_entry(
             title=NAME,
@@ -273,7 +283,7 @@ class MeteoFranceMontagneConfigFlow(
                 "data": _massif_data(massif, stations),
                 "subentry_type": SUBENTRY_TYPE_MASSIF,
                 "title": title,
-                "unique_id": str(massif["code"]),
+                "unique_id": str(massif.code),
             }],
         )
 
@@ -340,19 +350,19 @@ class MassifSubentryFlowHandler(
         """Start with the department selection."""
         return await self.async_step_department()
 
-    def _is_configured(self, massif: dict[str, Any]) -> bool:
+    def _is_configured(self, massif: Massif) -> bool:
         return any(
-            subentry.unique_id == str(massif["code"])
+            subentry.unique_id == str(massif.code)
             for subentry in self._get_entry().subentries.values()
         )
 
     async def _async_create_massif(
-        self, massif: dict[str, Any], title: str, stations: dict[str, str]
+        self, massif: Massif, title: str, stations: dict[str, str]
     ) -> SubentryFlowResult:
         return self.async_create_entry(
             title=title,
             data=_massif_data(massif, stations),
-            unique_id=str(massif["code"]),
+            unique_id=str(massif.code),
         )
 
     async def async_step_reconfigure(
@@ -382,9 +392,9 @@ class MassifSubentryFlowHandler(
                     massif
                     for massifs in departments.values()
                     for massif in massifs
-                    if massif["code"] == subentry.data[CONF_MASSIF]
+                    if massif.code == subentry.data[CONF_MASSIF]
                 ),
-                {},
+                None,
             )
             self._stations = await _async_massif_stations(self.hass, massif)
         except MeteoFranceMontagneAuthError:
@@ -395,7 +405,7 @@ class MassifSubentryFlowHandler(
 
         # Keep offering a configured station that stopped observing
         for station_id, name in configured.items():
-            self._stations.setdefault(station_id, {"nom": name})
+            self._stations.setdefault(station_id, _Station(name))
         if not self._stations:
             return self.async_abort(
                 reason="no_station",
