@@ -5,11 +5,11 @@ import pytest
 from homeassistant.config_entries import SOURCE_USER
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType
-
-from custom_components.meteofrance_montagne.api import (
+from meteofrance_montagne import (
     MeteoFranceMontagneApiError,
     MeteoFranceMontagneAuthError,
 )
+
 from custom_components.meteofrance_montagne.const import (
     CONF_MASSIF,
     CONF_MASSIF_NAME,
