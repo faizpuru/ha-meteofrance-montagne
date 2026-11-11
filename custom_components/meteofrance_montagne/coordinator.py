@@ -2,6 +2,7 @@
 import asyncio
 from datetime import timedelta, datetime
 import logging
+from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
@@ -35,7 +36,7 @@ def parse_bulletin_time(value: str) -> datetime:
     return dt_util.as_utc(parsed)
 
 
-class MeteoFranceMontagneDataUpdateCoordinator(DataUpdateCoordinator):
+class MeteoFranceMontagneDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     """Class to coordinate data updates."""
 
     def __init__(
@@ -43,7 +44,7 @@ class MeteoFranceMontagneDataUpdateCoordinator(DataUpdateCoordinator):
         hass: HomeAssistant,
         config_entry: ConfigEntry,
         session: aiohttp.ClientSession,
-        massif_id: str,
+        massif_id: int,
         massif_name: str,
         token: str
     ) -> None:
@@ -51,9 +52,9 @@ class MeteoFranceMontagneDataUpdateCoordinator(DataUpdateCoordinator):
         self.api = MeteoFranceMontagneApi(session, token)
         self.massif_id = massif_id
         self.massif_name = massif_name
-        self.updated_at = None
+        self.updated_at: datetime | None = None
         # Writing and diffusion times of the bulletin whose images were downloaded
-        self._published = None
+        self._published: tuple[datetime, str] | None = None
 
         super().__init__(
             hass,
@@ -63,7 +64,7 @@ class MeteoFranceMontagneDataUpdateCoordinator(DataUpdateCoordinator):
             update_interval=timedelta(hours=UPDATE_INTERVAL),
         )
 
-    async def _async_update_data(self):
+    async def _async_update_data(self) -> dict[str, Any]:
         """Fetch data from API."""
         try:
             data = await self._async_fetch()
@@ -83,7 +84,7 @@ class MeteoFranceMontagneDataUpdateCoordinator(DataUpdateCoordinator):
             self.update_interval = timedelta(hours=UPDATE_INTERVAL)
         return data
 
-    def _off_season_data(self, message: str) -> dict:
+    def _off_season_data(self, message: str) -> dict[str, Any]:
         """Return the data of a massif without bulletin, polled less often."""
         if self.update_interval != timedelta(hours=OFF_SEASON_UPDATE_INTERVAL):
             _LOGGER.info(
@@ -101,7 +102,7 @@ class MeteoFranceMontagneDataUpdateCoordinator(DataUpdateCoordinator):
             "massif_name": self.massif_name,
         }
 
-    async def _async_fetch(self):
+    async def _async_fetch(self) -> dict[str, Any]:
         """Fetch the bulletin, and the images when a new bulletin is published."""
         bulletin = await self.api.bulletin(self.massif_id)
         bulletin_date = bulletin["dateBulletin"]
@@ -152,7 +153,7 @@ class MeteoFranceMontagneDataUpdateCoordinator(DataUpdateCoordinator):
         }
 
 
-class MeteoFranceNivoDataUpdateCoordinator(DataUpdateCoordinator):
+class MeteoFranceNivoDataUpdateCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
     """Coordinate the observations of all the stations, read from the same file."""
 
     def __init__(
@@ -173,7 +174,7 @@ class MeteoFranceNivoDataUpdateCoordinator(DataUpdateCoordinator):
             update_interval=timedelta(hours=UPDATE_INTERVAL),
         )
 
-    async def _async_update_data(self) -> dict[str, dict]:
+    async def _async_update_data(self) -> dict[str, dict[str, Any]]:
         """Fetch the last observation of each station."""
         now = dt_util.utcnow()
         # Early January, the last observations are still in the previous file

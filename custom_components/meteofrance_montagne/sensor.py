@@ -89,7 +89,7 @@ def _risk_picture(value: Any) -> str:
 
 # Avalanche risk
 
-def _risque_attrs(data: dict) -> dict[str, Any]:
+def _risque_attrs(data: dict[str, Any]) -> dict[str, Any]:
     risque = data["risque"]
 
     risk_max_value = risque.get("risque_max")
@@ -156,11 +156,11 @@ def _risque_attrs(data: dict) -> dict[str, Any]:
     return attrs
 
 
-def _risque_j2(data: dict) -> dict:
+def _risque_j2(data: dict[str, Any]) -> dict[str, Any]:
     return data["risque"].get("estimation_j2") or {}
 
 
-def _risque_j2_attrs(data: dict) -> dict[str, Any]:
+def _risque_j2_attrs(data: dict[str, Any]) -> dict[str, Any]:
     if not (j2 := _risque_j2(data)):
         return {}
 
@@ -186,10 +186,10 @@ def _limite_enneigement(value: int | None) -> int | None:
     return None if value is None or value <= 0 else value
 
 
-def _enneigement_attrs(orientation: str) -> Callable[[dict], dict[str, Any]]:
+def _enneigement_attrs(orientation: str) -> Callable[[dict[str, Any]], dict[str, Any]]:
     """Return the attributes builder of the north or south snow limit."""
 
-    def attrs_fn(data: dict) -> dict[str, Any]:
+    def attrs_fn(data: dict[str, Any]) -> dict[str, Any]:
         enneigement = data["enneigement"]
         attrs = {
             "date": enneigement.get("date"),
@@ -228,13 +228,17 @@ def _enneigement_attrs(orientation: str) -> Callable[[dict], dict[str, Any]]:
 
 
 def _parse_day(value: str | None) -> date | None:
+    if value is None:
+        return None
     try:
         return datetime.fromisoformat(value).date()
     except (TypeError, ValueError):
         return None
 
 
-def _neige_fraiche_split(data: dict) -> tuple[list[dict], list[dict]]:
+def _neige_fraiche_split(
+    data: dict[str, Any],
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     """Split the 24h fresh snow measures into analyses and forecasts.
 
     Each measure covers 06 UTC to 06 UTC the next day, starting on its date:
@@ -251,7 +255,7 @@ def _neige_fraiche_split(data: dict) -> tuple[list[dict], list[dict]]:
     return analyses, previsions
 
 
-def _mesure_attrs(mesure: dict) -> dict[str, Any]:
+def _mesure_attrs(mesure: dict[str, Any]) -> dict[str, Any]:
     return {
         "date": mesure.get("date"),
         "min_cm": mesure.get("min"),
@@ -259,12 +263,12 @@ def _mesure_attrs(mesure: dict) -> dict[str, Any]:
     }
 
 
-def _neige_fraiche_value(data: dict) -> StateType:
+def _neige_fraiche_value(data: dict[str, Any]) -> StateType:
     analyses, _ = _neige_fraiche_split(data)
     return analyses[-1].get("max") if analyses else None
 
 
-def _neige_fraiche_attrs(data: dict) -> dict[str, Any]:
+def _neige_fraiche_attrs(data: dict[str, Any]) -> dict[str, Any]:
     neige = data["neige_fraiche"]
     analyses, previsions = _neige_fraiche_split(data)
     derniere = analyses[-1] if analyses else {}
@@ -286,9 +290,9 @@ def _neige_fraiche_attrs(data: dict) -> dict[str, Any]:
 
 # Weather
 
-def _clean_echeance(echeance: dict) -> dict:
+def _clean_echeance(echeance: dict[str, Any]) -> dict[str, Any]:
     """Clean forecast values, replace -1 with None and add weather condition text."""
-    cleaned = {}
+    cleaned: dict[str, Any] = {}
     for key, value in echeance.items():
         if value == -1:
             cleaned[key] = None
@@ -300,9 +304,10 @@ def _clean_echeance(echeance: dict) -> dict:
     return cleaned
 
 
-def _prochaine_echeance(data: dict) -> dict:
+def _prochaine_echeance(data: dict[str, Any]) -> dict[str, Any]:
     """Return the first forecast step still to come, empty once all are past."""
     now = dt_util.utcnow()
+    echeance: dict[str, Any]
     for echeance in data["meteo"].get("echeances", []):
         try:
             if parse_bulletin_time(echeance["date"]) >= now:
@@ -312,23 +317,25 @@ def _prochaine_echeance(data: dict) -> dict:
     return {}
 
 
-def _echeance_value(value: Any) -> Any:
+def _echeance_value(value: StateType) -> StateType:
     """Return a forecast value, None for the -1 "not applicable" marker."""
     return None if value == -1 else value
 
 
-def _echeance_attrs(data: dict) -> dict[str, Any]:
+def _echeance_attrs(data: dict[str, Any]) -> dict[str, Any]:
     return {"date_echeance": _prochaine_echeance(data).get("date")}
 
 
-def _vent(index: int) -> tuple[Callable[[dict], StateType], Callable[[dict], dict[str, Any]]]:
+def _vent(
+    index: int,
+) -> tuple[Callable[[dict[str, Any]], StateType], Callable[[dict[str, Any]], dict[str, Any]]]:
     """Return the value and attributes builders of the low (1) or high (2) wind."""
 
-    def value_fn(data: dict) -> StateType:
+    def value_fn(data: dict[str, Any]) -> StateType:
         vent = _prochaine_echeance(data).get("vent") or {}
         return _echeance_value(vent.get(f"force_{index}"))
 
-    def attrs_fn(data: dict) -> dict[str, Any]:
+    def attrs_fn(data: dict[str, Any]) -> dict[str, Any]:
         echeance = _prochaine_echeance(data)
         return {
             "direction": (echeance.get("vent") or {}).get(f"direction_{index}"),
@@ -343,14 +350,15 @@ VENT_BAS = _vent(1)
 VENT_HAUT = _vent(2)
 
 
-def _temps_sensible(data: dict) -> StateType:
+def _temps_sensible(data: dict[str, Any]) -> StateType:
     """Return the weather condition of the next forecast step."""
-    if (code := _prochaine_echeance(data).get("temps_sensible")) is None:
+    code: int | None = _prochaine_echeance(data).get("temps_sensible")
+    if code is None:
         return None
     return WEATHER_CONDITIONS.get(code, code)
 
 
-def _meteo_attrs(data: dict) -> dict[str, Any]:
+def _meteo_attrs(data: dict[str, Any]) -> dict[str, Any]:
     meteo = data["meteo"]
     return {
         "date_echeance": _prochaine_echeance(data).get("date"),
@@ -367,26 +375,27 @@ def _meteo_attrs(data: dict) -> dict[str, Any]:
 
 # Snowpack stability
 
-def _situation(data: dict) -> Any:
+def _situation(data: dict[str, Any]) -> str | None:
     """Return the code of the main typical avalanche situation."""
     situations = data["stabilite"].get("situations_avalancheuses", [])
-    return situations[0].get("type") if situations else None
+    situation_type: str | None = situations[0].get("type") if situations else None
+    return situation_type
 
 
-def _stabilite_value(data: dict) -> StateType:
+def _stabilite_value(data: dict[str, Any]) -> StateType:
     if (situation_type := _situation(data)) is None:
         return None
-    return AVALANCHE_SITUATIONS.get(str(situation_type), situation_type)
+    return AVALANCHE_SITUATIONS.get(situation_type, situation_type)
 
 
-def _stabilite_picture(data: dict) -> str | None:
+def _stabilite_picture(data: dict[str, Any]) -> str | None:
     situation_type = str(_situation(data))
     if situation_type not in AVALANCHE_SITUATIONS:
         return None
     return f"{RESOURCES_URL}/SAT/SAT{situation_type}.png"
 
 
-def _stabilite_attrs(data: dict) -> dict[str, Any]:
+def _stabilite_attrs(data: dict[str, Any]) -> dict[str, Any]:
     stabilite = data["stabilite"]
     return {
         "titre": stabilite.get("titre", ""),
@@ -407,9 +416,9 @@ def _stabilite_attrs(data: dict) -> dict[str, Any]:
 class MeteoFranceMontagneSensorEntityDescription(SensorEntityDescription):
     """Describes a Météo-France Montagne sensor."""
 
-    value_fn: Callable[[dict], StateType]
-    attrs_fn: Callable[[dict], dict[str, Any]]
-    picture_fn: Callable[[dict], str | None] = lambda data: None
+    value_fn: Callable[[dict[str, Any]], StateType]
+    attrs_fn: Callable[[dict[str, Any]], dict[str, Any]]
+    picture_fn: Callable[[dict[str, Any]], str | None] = lambda data: None
 
 
 SENSOR_TYPES: tuple[MeteoFranceMontagneSensorEntityDescription, ...] = (
@@ -545,14 +554,19 @@ SENSOR_TYPES: tuple[MeteoFranceMontagneSensorEntityDescription, ...] = (
 )
 
 
-def _temps_observe(observation: dict) -> StateType:
+def _code_text(texts: dict[int, str], code: int | None) -> str | None:
+    """Return the text of a code of the nivo file, None when not observed."""
+    return None if code is None else texts.get(code)
+
+
+def _temps_observe(observation: dict[str, Any]) -> StateType:
     """Return the observed weather, the sky when nothing is falling."""
-    if (weather := PRESENT_WEATHER.get(observation.get("temps_present"))) is not None:
+    if (weather := _code_text(PRESENT_WEATHER, observation.get("temps_present"))) is not None:
         return weather
-    return SKY_CONDITIONS.get(observation.get("nebulosite"))
+    return _code_text(SKY_CONDITIONS, observation.get("nebulosite"))
 
 
-def _nebulosite_pct(observation: dict) -> int | None:
+def _nebulosite_pct(observation: dict[str, Any]) -> int | None:
     """Return the cloud cover in percent, None when the sky is hidden."""
     octas = observation.get("nebulosite")
     return None if octas is None or octas > 8 else round(octas * 12.5)
@@ -562,9 +576,9 @@ def _nebulosite_pct(observation: dict) -> int | None:
 class MeteoFranceMontagneStationSensorEntityDescription(SensorEntityDescription):
     """Describes a sensor of an observation station."""
 
-    value_fn: Callable[[dict], StateType]
-    attrs_fn: Callable[[dict], dict[str, Any]] = lambda observation: {}
-    picture_fn: Callable[[dict], str | None] = lambda observation: None
+    value_fn: Callable[[dict[str, Any]], StateType]
+    attrs_fn: Callable[[dict[str, Any]], dict[str, Any]] = lambda observation: {}
+    picture_fn: Callable[[dict[str, Any]], str | None] = lambda observation: None
 
 
 STATION_SENSOR_TYPES: tuple[MeteoFranceMontagneStationSensorEntityDescription, ...] = (
@@ -656,17 +670,17 @@ STATION_SENSOR_TYPES: tuple[MeteoFranceMontagneStationSensorEntityDescription, .
             "direction": observation.get("vent_direction"),
             "vent_altitude_force_ms": observation.get("vent_altitude_force"),
             "vent_altitude_direction": observation.get("vent_altitude_direction"),
-            "chasse_neige": BLOWING_SNOW.get(observation.get("chasse_neige")),
+            "chasse_neige": _code_text(BLOWING_SNOW, observation.get("chasse_neige")),
         },
     ),
     MeteoFranceMontagneStationSensorEntityDescription(
         key="neige_surface",
         translation_key="neige_surface",
         icon="mdi:snowflake-variant",
-        value_fn=lambda observation: SNOW_GRAINS.get(observation.get("grain_surface")),
+        value_fn=lambda observation: _code_text(SNOW_GRAINS, observation.get("grain_surface")),
         attrs_fn=lambda observation: {
             # Between the surface and 10 cm below
-            "grains_sous_surface": SNOW_GRAINS.get(observation.get("grain_sous_surface")),
+            "grains_sous_surface": _code_text(SNOW_GRAINS, observation.get("grain_sous_surface")),
             "masse_volumique_kg_m3": observation.get("masse_volumique"),
         },
     ),
@@ -761,7 +775,7 @@ class MeteoFranceMontagneSensor(MeteoFranceMontagneEntity, SensorEntity):
         self.entity_description = description
 
     @property
-    def _bulletin(self) -> dict | None:
+    def _bulletin(self) -> dict[str, Any] | None:
         """Return the bulletin data, None outside the season."""
         data = self.coordinator.data
         if not data or data.get("hors_saison"):
@@ -788,9 +802,9 @@ class MeteoFranceMontagneSensor(MeteoFranceMontagneEntity, SensorEntity):
         data = self.coordinator.data
         if data and data.get("hors_saison"):
             return {"hors_saison": True, "message": data["message"]}
-        if (data := self._bulletin) is None:
+        if (bulletin := self._bulletin) is None:
             return {}
-        return self.entity_description.attrs_fn(data)
+        return self.entity_description.attrs_fn(bulletin)
 
 
 class MeteoFranceMontagneStationSensor(MeteoFranceMontagneStationEntity, SensorEntity):
