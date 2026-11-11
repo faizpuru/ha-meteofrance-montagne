@@ -43,10 +43,9 @@ class MeteoFranceMontagneAvisSensor(MeteoFranceMontagneEntity, BinarySensorEntit
     def _avis(self) -> str | None:
         """Return the warning text, None without bulletin."""
         data = self.coordinator.data
-        if not data or data.get("hors_saison"):
+        if not data or data.bulletin is None:
             return None
-        avis: str = data["risque"].get("avis", "")
-        return avis
+        return data.bulletin.risque.avis
 
     @property
     def is_on(self) -> bool | None:
